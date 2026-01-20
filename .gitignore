@@ -12,3 +12,8 @@ data/raw/
 
 # Usually local outputs (optional to commit)
 data/processed/
+
+*.egg-info/
+build/
+dist/
+
