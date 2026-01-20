@@ -17,3 +17,7 @@ data/processed/
 build/
 dist/
 
+# ignore all reports by default
+reports/
+
+
