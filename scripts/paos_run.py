@@ -27,6 +27,7 @@ def main() -> None:
 
     import paos.ingest.csv_ingest as csv_ingest
     import paos.transform.scoring as scoring
+    from paos.analysis.summary import write_weekly_summary   # <-- ADD THIS
 
     ingest_fn = _pick_fn(csv_ingest, ("ingest_csv", "read_daily_log_csv", "load_daily_log_csv", "read_csv"))
     enrich_fn = _pick_fn(scoring, ("enrich_daily_log", "enrich", "score_and_enrich", "add_scores"))
@@ -36,9 +37,12 @@ def main() -> None:
 
     df_enriched.to_csv(out_path, index=False)
 
+    write_weekly_summary(df_enriched, Path("reports") / "summary.md")  # <-- ADD THIS
+
     print("PAOS run complete")
     print(f"- Input:  {input_path}")
     print(f"- Output: {out_path}")
+    print(f"- Summary: {Path('reports') / 'summary.md'}")
 
 
 if __name__ == "__main__":
