@@ -1,0 +1,14 @@
+﻿# Python
+.venv/
+__pycache__/
+*.pyc
+
+# OS
+Thumbs.db
+.DS_Store
+
+#Private data
+data/raw/
+
+# Usually local outputs (optional to commit)
+data/processed/
