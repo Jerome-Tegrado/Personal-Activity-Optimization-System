@@ -34,20 +34,21 @@ python -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 
-python scripts/paos_run.py all --input data/sample/daily_log.csv --out reports/
+# Generate public demo outputs into reports_demo/
+python scripts/paos_run.py all --input data/sample/daily_log.csv --out reports_demo
 
-ls reports/figures/interactive/
-ls reports/figures/static/
-cat reports/summary.md
+ls reports_demo/figures/interactive/
+ls reports_demo/figures/static/
+cat reports_demo/summary.md
 ````
 
-**What I generate:**
+**What I generate (in the output folder):**
 
-* `reports/figures/interactive/activity_trend.html`
-* `reports/figures/interactive/status_counts.html`
-* `reports/figures/interactive/activity_vs_energy.html`
-* `reports/figures/static/*.png`
-* `reports/summary.md`
+* `figures/interactive/activity_trend.html`
+* `figures/interactive/status_counts.html`
+* `figures/interactive/activity_vs_energy.html`
+* `figures/static/*.png`
+* `summary.md`
 
 > My real personal data stays local in `data/raw/` and is never committed.
 
@@ -81,7 +82,7 @@ cat reports/summary.md
 * **Activity Level** score (0–100)
 * **Lifestyle Status** category: Sedentary → Lightly Active → Active → Very Active
 * **Recommendation text per day**
-* Weekly trends, streaks, and correlation analysis (Activity ↔ Energy/Focus)
+* Weekly correlation analysis (Activity ↔ Energy/Focus)
 * Interactive charts (Plotly) + static backups (Matplotlib)
 * A clean report I can share publicly (without private raw data)
 
@@ -128,6 +129,7 @@ cat reports/summary.md
 
 * pytest
 * Git/GitHub
+* GitHub Actions (CI)
 
 **Dashboard (v2)**
 
@@ -141,14 +143,15 @@ cat reports/summary.md
 paos/
 ├── data/
 │   ├── raw/                  # my real private inputs (DO NOT COMMIT)
-│   ├── processed/            # cleaned/enriched outputs (usually DO NOT COMMIT)
+│   ├── processed/            # local enriched outputs (usually DO NOT COMMIT)
 │   └── sample/               # synthetic/anonymized examples (OK to commit)
 ├── notebooks/                # EDA and exploration
-├── reports/
-│   ├── figures/              # exported charts (OK to commit)
+├── reports/                  # local reports output (ignored)
+├── reports_demo/             # public demo outputs (OK to commit)
+│   ├── figures/
 │   │   ├── interactive/      # Plotly HTML files
 │   │   └── static/           # Matplotlib PNG files
-│   └── summary.md            # weekly/monthly write-ups (OK to commit)
+│   └── summary.md            # weekly summary (demo)
 ├── src/
 │   └── paos/
 │       ├── config.py         # thresholds + points live here
@@ -191,8 +194,11 @@ pip install -r requirements.txt
 4. **Run the pipeline**
 
 ```bash
-python scripts/paos_run.py all
+python scripts/paos_run.py all --input data/raw/daily_log.csv --out reports
 ```
+
+> I keep `data/raw/` private and generate local outputs into `reports/` (ignored).
+> For GitHub demos, I run against `data/sample/` and output to `reports_demo/`.
 
 ---
 
@@ -420,23 +426,6 @@ Trend-aware upgrades I plan (v2):
 
 ---
 
-## Analytics I generate (weekly reflection)
-
-* Weekly/monthly average Activity Level
-* Lifestyle Status distribution
-* Streaks (e.g., consecutive days ≥ Active)
-* Weekday patterns (Mon–Sun)
-* Activity ↔ Energy/Focus correlation
-* Step count trends over time
-* Exercise frequency by type
-
-How I interpret correlation:
-
-* It suggests association, not causation.
-* I use it to design small experiments and measure outcomes.
-
----
-
 ## Visualizations
 
 My default set (interactive + static):
@@ -445,84 +434,29 @@ My default set (interactive + static):
 2. Lifestyle Status counts
 3. Activity vs Energy/Focus scatter
 
-Outputs:
+Outputs (in the chosen output directory):
 
-* Plotly HTML → `reports/figures/interactive/`
-* Matplotlib PNG → `reports/figures/static/`
-
----
-
-## Weekly summary format (my storytelling output)
-
-```markdown
-# Week: January 1-7, 2026
-
-## Overview
-- **Days logged:** 7/7
-- **Avg Activity Level:** 57 (Active)
-- **Avg Energy/Focus:** 3.6/5
-- **Sedentary days:** 1
-- **Active+ days:** 5
-
-## Trends
-- Activity increased from 48 → 57 (+9 points)
-- Energy/Focus improved from 3.1 → 3.6 (+0.5)
-- Correlation (Activity ↔ Energy): 0.72 (strong positive)
-
-## Changes I Made
-- Added 20-min walk after lunch (Mon-Fri)
-- Basketball on Sunday
-
-## Insights
-- Lunch walks consistently kept me in "Active" range
-- Low-step days (< 5k) always paired with low energy
-- Basketball was fun but exhausting (Peak effort)
-
-## Next Week Experiment
-- Add 2 strength sessions (Tue, Thu)
-- Target: reach "Very Active" 3+ days
-```
+* Plotly HTML → `figures/interactive/`
+* Matplotlib PNG → `figures/static/`
 
 ---
 
 ## Pipeline contract (what my script does)
 
 ```bash
-python scripts/paos_run.py all
+python scripts/paos_run.py all --input <csv_path> --out <output_dir>
 ```
-
-Pipeline stages:
-
-1. Ingest (CSV or Sheets)
-2. Clean + standardize (types, missing values, dedupe by date)
-3. Score (step points + exercise points)
-4. Classify (status)
-5. Recommend (daily text)
-6. Analyze (rolling averages, streaks, correlations)
-7. Visualize (Plotly + Matplotlib)
-8. Export (CSV + figures + markdown summary)
 
 Outputs:
 
 * `data/processed/daily_log_enriched.csv`
-* `reports/figures/interactive/*.html`
-* `reports/figures/static/*.png`
-* `reports/summary.md`
+* `<output_dir>/figures/interactive/*.html`
+* `<output_dir>/figures/static/*.png`
+* `<output_dir>/summary.md`
 
 ---
 
 ## Testing
-
-I write unit tests for:
-
-* Step scoring boundaries (4999/5000, 6999/7000, 9999/10000)
-* Exercise scoring with HR zones and duration bands
-* Activity level calculation
-* Lifestyle status boundaries (25/26, 50/51, 75/76)
-* Steps-only days (exercise_points = 0)
-* Exercise-heavy low-step days
-* Duplicate-date behavior (keep latest)
-* Missing value handling
 
 Run:
 
@@ -536,7 +470,7 @@ pytest tests/ -v
 
 * I treat this as sensitive personal wellness data.
 * I don’t publish raw daily logs.
-* I commit only synthetic sample data + aggregated outputs.
+* I commit only synthetic sample data + demo outputs.
 * Notes can contain private info; I exclude them from public outputs by default.
 * Heart rate data is personal health information; I handle it carefully.
 * All personal data stays in `data/raw/` (gitignored).
@@ -555,8 +489,9 @@ pytest tests/ -v
 * ✅ Basic recommendations
 * ✅ Export enriched CSV
 * ✅ Interactive + static charts
-* ✅ Weekly summary template
+* ✅ Weekly summary generation
 * ✅ Unit tests
+* ✅ GitHub Actions CI
 
 ### v2 (Enhanced)
 
@@ -583,39 +518,6 @@ pytest tests/ -v
 pip install -r requirements.txt
 ```
 
-Example `requirements.txt`:
-
-```text
-# Core Data Stack
-pandas>=2.1.0
-numpy>=1.24.0
-duckdb>=0.9.0
-
-# Visualization
-plotly>=5.18.0
-matplotlib>=3.8.0
-
-# Optional (EDA)
-seaborn>=0.13.0
-
-# Google Sheets Integration (v2)
-gspread>=5.12.0
-google-auth>=2.23.0
-google-auth-oauthlib>=1.1.0
-google-auth-httplib2>=0.1.1
-
-# Web Dashboard (v2)
-streamlit>=1.29.0
-
-# Testing
-pytest>=7.4.0
-pytest-cov>=4.1.0
-
-# Utilities
-python-dateutil>=2.8.2
-pytz>=2023.3
-```
-
 ---
 
 ## Sample Data
@@ -632,34 +534,6 @@ date,steps,energy_focus,did_exercise,exercise_type,exercise_minutes,heart_rate_z
 2026-01-17,9200,4,Yes,sports,60,intense,"Basketball with friends"
 2026-01-18,5200,2,No,,,,"Busy day, low activity"
 2026-01-19,11500,4,Yes,cardio,40,moderate,"Long Sunday walk"
-```
-
----
-
-## Quick Logging Reference Card
-
-```text
-┌─────────────────────────────────────────────┐
-│           PAOS DAILY LOGGING GUIDE          │
-├─────────────────────────────────────────────┤
-│ EVERY DAY (Required):                       │
-│ - Date                                      │
-│ - Steps from phone/tracker                  │
-│ - Energy/Focus level (1-5)                  │
-│ - Did you exercise today? (Yes/No)          │
-│                                             │
-│ ONLY IF YOU EXERCISED:                      │
-│ - Exercise type                             │
-│ - Duration (minutes)                        │
-│ - Heart rate zone OR use talk test:         │
-│    Can sing?       → Light                  │
-│    Can talk?       → Moderate               │
-│    Short phrases?  → Intense                │
-│    Can't talk?     → Peak                   │
-│                                             │
-│ NOTES (Optional):                           │
-│ - Context (sleep, stress, travel, etc.)     │
-└─────────────────────────────────────────────┘
 ```
 
 ---
