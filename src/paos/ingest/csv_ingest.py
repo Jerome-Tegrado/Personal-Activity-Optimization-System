@@ -7,7 +7,8 @@ def ingest_csv(path: str) -> pd.DataFrame:
     df = pd.read_csv(path)
     df.columns = [c.strip().lower() for c in df.columns]
 
-    df["date"] = pd.to_datetime(df["date"], errors="coerce").dt.date
+    # Keep as pandas datetime64[ns] (not Python datetime.date objects)
+    df["date"] = pd.to_datetime(df["date"], errors="coerce").dt.normalize()
     df["steps"] = pd.to_numeric(df["steps"], errors="coerce")
     df["energy_focus"] = pd.to_numeric(df["energy_focus"], errors="coerce")
 
