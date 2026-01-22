@@ -1,8 +1,8 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import pandas as pd
 
-from paos.config import STEP_BANDS, DURATION_BANDS, HR_MULTIPLIERS, STATUS_BANDS
+from paos.config import DURATION_BANDS, HR_MULTIPLIERS, STATUS_BANDS, STEP_BANDS
 
 
 def score_steps(steps: float) -> int:

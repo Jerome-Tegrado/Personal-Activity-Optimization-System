@@ -1,4 +1,5 @@
 import pandas as pd
+
 import paos.transform.scoring as scoring
 
 
@@ -8,8 +9,7 @@ def _pick_fn(module, names):
         if callable(fn):
             return fn
     raise RuntimeError(
-        f"Could not find an enrich function in {module.__name__}. "
-        f"Tried: {', '.join(names)}"
+        f"Could not find an enrich function in {module.__name__}. Tried: {', '.join(names)}"
     )
 
 

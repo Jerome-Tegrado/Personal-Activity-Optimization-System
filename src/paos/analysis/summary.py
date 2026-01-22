@@ -2,10 +2,13 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Optional
+
 import pandas as pd
 
 
-def write_weekly_summary(df: pd.DataFrame, out_path: str | Path, week_end: Optional[str] = None) -> Path:
+def write_weekly_summary(
+    df: pd.DataFrame, out_path: str | Path, week_end: Optional[str] = None
+) -> Path:
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -24,7 +27,11 @@ def write_weekly_summary(df: pd.DataFrame, out_path: str | Path, week_end: Optio
     active_plus_days = int((week["activity_level"] >= 51).sum()) if days_logged else 0
 
     corr = None
-    if days_logged >= 3 and week["activity_level"].nunique() > 1 and week["energy_focus"].nunique() > 1:
+    if (
+        days_logged >= 3
+        and week["activity_level"].nunique() > 1
+        and week["energy_focus"].nunique() > 1
+    ):
         corr = round(float(week["activity_level"].corr(week["energy_focus"])), 2)
 
     md = []

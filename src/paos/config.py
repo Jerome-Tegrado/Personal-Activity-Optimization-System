@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 # Step scoring (0-50)
 STEP_BANDS = [

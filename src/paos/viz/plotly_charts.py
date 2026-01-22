@@ -12,7 +12,12 @@ def activity_trend(df: pd.DataFrame):
 
 
 def status_counts(df: pd.DataFrame):
-    counts = df["lifestyle_status"].value_counts().rename_axis("lifestyle_status").reset_index(name="count")
+    counts = (
+        df["lifestyle_status"]
+        .value_counts()
+        .rename_axis("lifestyle_status")
+        .reset_index(name="count")
+    )
     fig = px.bar(counts, x="lifestyle_status", y="count", title="Lifestyle Status Counts")
     fig.update_layout(xaxis_title="Lifestyle Status", yaxis_title="Days")
     return fig

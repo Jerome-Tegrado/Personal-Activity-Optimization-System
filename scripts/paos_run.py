@@ -20,7 +20,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="PAOS pipeline runner")
     parser.add_argument("stage", choices=["all"], help="Pipeline stage to run")
     parser.add_argument("--input", default="data/sample/daily_log.csv", help="Input CSV path")
-    parser.add_argument("--processed", default="data/processed/daily_log_enriched.csv", help="Output enriched CSV")
+    parser.add_argument(
+        "--processed", default="data/processed/daily_log_enriched.csv", help="Output enriched CSV"
+    )
     parser.add_argument(
         "--out",
         default="reports",
@@ -39,7 +41,9 @@ def main() -> None:
     import paos.transform.scoring as scoring
     from paos.analysis.summary import write_weekly_summary
 
-    ingest_fn = _pick_fn(csv_ingest, ("ingest_csv", "read_daily_log_csv", "load_daily_log_csv", "read_csv"))
+    ingest_fn = _pick_fn(
+        csv_ingest, ("ingest_csv", "read_daily_log_csv", "load_daily_log_csv", "read_csv")
+    )
     enrich_fn = _pick_fn(scoring, ("enrich_daily_log", "enrich", "score_and_enrich", "add_scores"))
 
     df_raw = ingest_fn(input_path)
