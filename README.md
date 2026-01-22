@@ -42,6 +42,8 @@ ls reports_demo/figures/interactive/
 ls reports_demo/figures/static/
 cat reports_demo/summary.md
 ````
+---
+
 ## Developer commands (PowerShell)
 
 If you're on Windows/PowerShell, you can use the helper script:
@@ -59,6 +61,7 @@ If you're on Windows/PowerShell, you can use the helper script:
 # run demo on synthetic sample data (writes to reports_demo/)
 .\scripts\dev.ps1 demo
 
+---
 
 **What I generate (in the output folder):**
 
