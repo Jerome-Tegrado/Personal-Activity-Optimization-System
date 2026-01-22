@@ -1,0 +1,4 @@
+# Exclude generated demo artifacts from GitHub language stats
+reports_demo/figures/interactive/*.html linguist-generated=true
+reports_demo/figures/static/*.png linguist-generated=true
+reports_demo/summary.md linguist-generated=true
