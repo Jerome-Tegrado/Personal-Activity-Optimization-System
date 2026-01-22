@@ -2,12 +2,13 @@
 .venv/
 __pycache__/
 *.pyc
+.pytest_cache/          # <-- added
 
 # OS
 Thumbs.db
 .DS_Store
 
-#Private data
+# Private data
 data/raw/
 
 # Usually local outputs (optional to commit)
@@ -20,4 +21,6 @@ dist/
 # ignore all reports by default
 reports/
 
-
+# public demo outputs (safe to commit)
+!reports_demo/          # <-- added
+!reports_demo/**        # <-- added
