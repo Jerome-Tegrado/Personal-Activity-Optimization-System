@@ -1,6 +1,3 @@
-Here’s your README **fixed** (main issue: the PowerShell code block wasn’t closed, so everything after it was being treated as code). I also fixed the Demo code fence to standard triple backticks and kept everything else the same.
-
-````markdown
 # Personal Activity Optimization System (PAOS)
 ![tests](https://github.com/Jerome-Tegrado/Personal-Activity-Optimization-System/actions/workflows/tests.yml/badge.svg)
 
