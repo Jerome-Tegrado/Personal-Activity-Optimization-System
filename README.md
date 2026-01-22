@@ -1,3 +1,6 @@
+Here’s your README **fixed** (main issue: the PowerShell code block wasn’t closed, so everything after it was being treated as code). I also fixed the Demo code fence to standard triple backticks and kept everything else the same.
+
+````markdown
 # Personal Activity Optimization System (PAOS)
 ![tests](https://github.com/Jerome-Tegrado/Personal-Activity-Optimization-System/actions/workflows/tests.yml/badge.svg)
 
@@ -42,6 +45,17 @@ ls reports_demo/figures/interactive/
 ls reports_demo/figures/static/
 cat reports_demo/summary.md
 ````
+
+**What I generate (in the output folder):**
+
+* `figures/interactive/activity_trend.html`
+* `figures/interactive/status_counts.html`
+* `figures/interactive/activity_vs_energy.html`
+* `figures/static/*.png`
+* `summary.md`
+
+> My real personal data stays local in `data/raw/` and is never committed.
+
 ---
 
 ## Developer commands (PowerShell)
@@ -60,18 +74,7 @@ If you're on Windows/PowerShell, you can use the helper script:
 
 # run demo on synthetic sample data (writes to reports_demo/)
 .\scripts\dev.ps1 demo
-
----
-
-**What I generate (in the output folder):**
-
-* `figures/interactive/activity_trend.html`
-* `figures/interactive/status_counts.html`
-* `figures/interactive/activity_vs_energy.html`
-* `figures/static/*.png`
-* `summary.md`
-
-> My real personal data stays local in `data/raw/` and is never committed.
+```
 
 ---
 
@@ -575,3 +578,6 @@ MIT License.
 * Heart Rate Training Zones basics: [https://www.polar.com/blog/running-heart-rate-zones-basics/](https://www.polar.com/blog/running-heart-rate-zones-basics/)
 * pandas docs: [https://pandas.pydata.org/docs/](https://pandas.pydata.org/docs/)
 * pytest docs: [https://docs.pytest.org/](https://docs.pytest.org/)
+
+```
+```
