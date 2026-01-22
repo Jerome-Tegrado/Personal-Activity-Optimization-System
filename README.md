@@ -1,4 +1,5 @@
 # Personal Activity Optimization System (PAOS)
+![tests](https://github.com/Jerome-Tegrado/Personal-Activity-Optimization-System/actions/workflows/tests.yml/badge.svg)
 
 PAOS is **my personal analytics system** for turning my daily activity logs into decisions I can act on.
 
