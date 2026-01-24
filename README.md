@@ -575,6 +575,3 @@ MIT License.
 * Heart Rate Training Zones basics: [https://www.polar.com/blog/running-heart-rate-zones-basics/](https://www.polar.com/blog/running-heart-rate-zones-basics/)
 * pandas docs: [https://pandas.pydata.org/docs/](https://pandas.pydata.org/docs/)
 * pytest docs: [https://docs.pytest.org/](https://docs.pytest.org/)
-
-```
-```
