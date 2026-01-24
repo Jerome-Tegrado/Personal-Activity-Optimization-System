@@ -24,3 +24,8 @@ reports/
 # public demo outputs (safe to commit)
 !reports_demo/          # <-- added
 !reports_demo/**        # <-- added
+
+# authentication and sensitive data
+secrets/
+credentials.json
+token.json
