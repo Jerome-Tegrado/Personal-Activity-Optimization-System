@@ -44,7 +44,12 @@ def main() -> None:
     parser.add_argument(
         "--dump-raw",
         action="store_true",
-        help="Dump raw Sheets pull to data/processed/sheets_raw.csv (Sheets input only).",
+        help="Dump raw Sheets pull (Sheets input only).",
+    )
+    parser.add_argument(
+        "--raw-out",
+        default="data/processed/sheets_raw.csv",
+        help="Path for raw Sheets snapshot (only used with --input-type sheets --dump-raw).",
     )
 
     parser.add_argument(
@@ -98,7 +103,7 @@ def main() -> None:
                 '--sheet-range "Form Responses 1!A1:J" --out reports'
             )
 
-        dump_raw_path = "data/processed/sheets_raw.csv" if args.dump_raw else None
+        dump_raw_path = args.raw_out if args.dump_raw else None
 
         df_raw = load_daily_log(
             "sheets",
@@ -124,7 +129,7 @@ def main() -> None:
     print(f"- Summary: {summary_path}")
 
     if args.input_type == "sheets" and args.dump_raw:
-        print("- Raw:     data/processed/sheets_raw.csv")
+        print(f"- Raw:     {args.raw_out}")
 
 
 if __name__ == "__main__":
