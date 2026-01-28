@@ -6,6 +6,19 @@ import subprocess
 import sys
 
 
+def _subprocess_env_with_sitecustomize() -> dict[str, str]:
+    helpers_dir = Path("tests/helpers").resolve()
+    repo_root = Path(".").resolve()
+
+    env = dict(os.environ)
+    existing = env.get("PYTHONPATH", "")
+    parts = [str(helpers_dir), str(repo_root)]
+    if existing:
+        parts.append(existing)
+    env["PYTHONPATH"] = os.pathsep.join(parts)
+    return env
+
+
 def test_dump_raw_requires_sheets() -> None:
     result = subprocess.run(
         [
@@ -30,15 +43,7 @@ def test_raw_out_creates_snapshot_for_sheets(tmp_path: Path) -> None:
     out_dir = tmp_path / "reports"
     processed_path = tmp_path / "daily_log_enriched.csv"
 
-    helpers_dir = Path("tests/helpers").resolve()
-    repo_root = Path(".").resolve()
-
-    env = dict(os.environ)
-    existing = env.get("PYTHONPATH", "")
-    parts = [str(helpers_dir), str(repo_root)]
-    if existing:
-        parts.append(existing)
-    env["PYTHONPATH"] = os.pathsep.join(parts)
+    env = _subprocess_env_with_sitecustomize()
 
     result = subprocess.run(
         [
@@ -80,15 +85,7 @@ def test_raw_out_creates_snapshot_for_sheets(tmp_path: Path) -> None:
 def test_raw_out_requires_dump_raw(tmp_path: Path) -> None:
     raw_path = tmp_path / "custom_raw.csv"
 
-    helpers_dir = Path("tests/helpers").resolve()
-    repo_root = Path(".").resolve()
-
-    env = dict(os.environ)
-    existing = env.get("PYTHONPATH", "")
-    parts = [str(helpers_dir), str(repo_root)]
-    if existing:
-        parts.append(existing)
-    env["PYTHONPATH"] = os.pathsep.join(parts)
+    env = _subprocess_env_with_sitecustomize()
 
     result = subprocess.run(
         [
