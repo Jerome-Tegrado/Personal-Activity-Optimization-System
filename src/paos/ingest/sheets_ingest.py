@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from pathlib import Path
 from typing import List, Optional
 
 import pandas as pd
@@ -54,14 +55,27 @@ def fetch_values(cfg: SheetsConfig) -> list[list[str]]:
     return result.get("values", [])
 
 
-def read_daily_log_from_sheets(cfg: SheetsConfig) -> pd.DataFrame:
+def read_daily_log_from_sheets(
+    cfg: SheetsConfig,
+    dump_raw_path: str | Path | None = None,
+) -> pd.DataFrame:
     values = fetch_values(cfg)
     if not values:
         return pd.DataFrame()
 
     headers = values[0]
     rows = values[1:]
-    df = pd.DataFrame(rows, columns=headers)
+
+    # RAW snapshot (exactly as returned by Sheets)
+    df_raw = pd.DataFrame(rows, columns=headers)
+
+    if dump_raw_path is not None:
+        dump_path = Path(dump_raw_path)
+        dump_path.parent.mkdir(parents=True, exist_ok=True)
+        df_raw.to_csv(dump_path, index=False)
+
+    # Continue processing from raw
+    df = df_raw.copy()
 
     # Map Google Form headers -> PAOS internal column names
     rename_map = {
@@ -91,12 +105,7 @@ def read_daily_log_from_sheets(cfg: SheetsConfig) -> pd.DataFrame:
 
     # steps: remove commas/spaces -> int
     if "steps" in df.columns:
-        df["steps"] = (
-            df["steps"]
-            .astype(str)
-            .str.replace(",", "", regex=False)
-            .str.strip()
-        )
+        df["steps"] = df["steps"].astype(str).str.replace(",", "", regex=False).str.strip()
         df["steps"] = pd.to_numeric(df["steps"], errors="coerce").astype("Int64")
 
     # energy_focus -> int
@@ -109,12 +118,7 @@ def read_daily_log_from_sheets(cfg: SheetsConfig) -> pd.DataFrame:
 
     # did_exercise normalize to "Yes"/"No"
     if "did_exercise" in df.columns:
-        df["did_exercise"] = (
-            df["did_exercise"]
-            .astype(str)
-            .str.strip()
-            .str.title()
-        )
+        df["did_exercise"] = df["did_exercise"].astype(str).str.strip().str.title()
         df.loc[~df["did_exercise"].isin(["Yes", "No"]), "did_exercise"] = pd.NA
 
     # heart_rate_zone normalize from verbose labels -> paos categories
