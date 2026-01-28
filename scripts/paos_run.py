@@ -40,6 +40,13 @@ def main() -> None:
         help='Sheets A1 range, e.g. "Form Responses 1!A1:J"',
     )
 
+    # Sheets debug option (raw snapshot)
+    parser.add_argument(
+        "--dump-raw",
+        action="store_true",
+        help="Dump raw Sheets pull to data/processed/sheets_raw.csv (Sheets input only).",
+    )
+
     parser.add_argument(
         "--processed",
         default="data/processed/daily_log_enriched.csv",
@@ -87,7 +94,14 @@ def main() -> None:
                 '--sheet-range "Form Responses 1!A1:J" --out reports'
             )
 
-        df_raw = load_daily_log("sheets", spreadsheet_id=sheet_id, range_=sheet_range)
+        dump_raw_path = "data/processed/sheets_raw.csv" if args.dump_raw else None
+
+        df_raw = load_daily_log(
+            "sheets",
+            spreadsheet_id=sheet_id,
+            range_=sheet_range,
+            dump_raw_path=dump_raw_path,
+        )
         input_label = f"sheets:{sheet_id} ({sheet_range})"
 
     # --- Transform / enrich ---
@@ -104,6 +118,9 @@ def main() -> None:
     print(f"- Output:  {out_path}")
     print(f"- Out dir: {out_dir}")
     print(f"- Summary: {summary_path}")
+
+    if args.input_type == "sheets" and args.dump_raw:
+        print("- Raw:     data/processed/sheets_raw.csv")
 
 
 if __name__ == "__main__":
