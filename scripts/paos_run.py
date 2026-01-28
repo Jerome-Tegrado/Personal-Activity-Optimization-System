@@ -1,3 +1,4 @@
+# scripts/paos_run.py
 from __future__ import annotations
 
 import argparse
@@ -31,7 +32,7 @@ def main() -> None:
     # CSV inputs (default path kept)
     parser.add_argument("--input", default="data/sample/daily_log.csv", help="Input CSV path")
 
-    # Sheets inputs (optional now; can fallback to config/env)
+    # Sheets inputs (optional; can fallback to config/env)
     parser.add_argument("--sheet-id", default=None, help="Google Sheets spreadsheet ID")
     parser.add_argument(
         "--sheet-range",
@@ -59,25 +60,18 @@ def main() -> None:
 
     import paos.transform.scoring as scoring
     from paos.analysis.summary import write_weekly_summary
+    from paos.ingest import load_daily_log
 
     enrich_fn = _pick_fn(scoring, ("enrich_daily_log", "enrich", "score_and_enrich", "add_scores"))
 
-    # --- Ingest ---
+    # --- Ingest (unified) ---
     if args.input_type == "csv":
-        import paos.ingest.csv_ingest as csv_ingest
-
-        ingest_fn = _pick_fn(
-            csv_ingest, ("ingest_csv", "read_daily_log_csv", "load_daily_log_csv", "read_csv")
-        )
-
         input_path = Path(args.input)
-        df_raw = ingest_fn(input_path)
-
+        df_raw = load_daily_log("csv", path=input_path)
         input_label = str(input_path)
 
     else:
         from paos.config import DEFAULT_SHEETS_ID, DEFAULT_SHEETS_RANGE
-        from paos.ingest.sheets_ingest import SheetsConfig, read_daily_log_from_sheets
 
         sheet_id = (args.sheet_id or DEFAULT_SHEETS_ID).strip()
         sheet_range = (args.sheet_range or DEFAULT_SHEETS_RANGE).strip()
@@ -93,12 +87,7 @@ def main() -> None:
                 '--sheet-range "Form Responses 1!A1:J" --out reports'
             )
 
-        cfg = SheetsConfig(
-            spreadsheet_id=sheet_id,
-            range_=sheet_range,
-        )
-        df_raw = read_daily_log_from_sheets(cfg)
-
+        df_raw = load_daily_log("sheets", spreadsheet_id=sheet_id, range_=sheet_range)
         input_label = f"sheets:{sheet_id} ({sheet_range})"
 
     # --- Transform / enrich ---
