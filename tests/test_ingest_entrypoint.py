@@ -50,3 +50,36 @@ def test_load_daily_log_routes_to_sheets(monkeypatch) -> None:
 
     # Assert
     assert df.loc[0, "source"] == "sheets"
+
+
+def test_load_daily_log_forwards_dump_raw_path(monkeypatch) -> None:
+    # Arrange: patch read_daily_log_from_sheets to capture dump_raw_path
+    captured: dict[str, object] = {}
+
+    def fake_read_daily_log_from_sheets(cfg, dump_raw_path=None) -> pd.DataFrame:
+        captured["spreadsheet_id"] = cfg.spreadsheet_id
+        captured["range_"] = cfg.range_
+        captured["dump_raw_path"] = dump_raw_path
+        return pd.DataFrame({"source": ["sheets"]})
+
+    import paos.ingest.sheets_ingest as sheets_ingest
+    monkeypatch.setattr(
+        sheets_ingest,
+        "read_daily_log_from_sheets",
+        fake_read_daily_log_from_sheets,
+        raising=True,
+    )
+
+    # Act
+    df = ingest.load_daily_log(
+        "sheets",
+        spreadsheet_id="SHEET_ID",
+        range_="Form Responses 1!A1:J",
+        dump_raw_path="data/processed/sheets_raw.csv",
+    )
+
+    # Assert
+    assert df.loc[0, "source"] == "sheets"
+    assert captured["spreadsheet_id"] == "SHEET_ID"
+    assert captured["range_"] == "Form Responses 1!A1:J"
+    assert captured["dump_raw_path"] == "data/processed/sheets_raw.csv"
