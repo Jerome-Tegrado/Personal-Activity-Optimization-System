@@ -22,6 +22,7 @@ def load_daily_log(source: str, **kwargs: Any) -> pd.DataFrame:
       - range_: str (required)
       - credentials_path: str (optional)
       - token_path: str (optional)
+      - dump_raw_path: str | Path (optional)  # writes raw Sheets snapshot before cleaning
     """
     source = source.strip().lower()
 
@@ -53,6 +54,8 @@ def load_daily_log(source: str, **kwargs: Any) -> pd.DataFrame:
             credentials_path=kwargs.get("credentials_path", "secrets/credentials.json"),
             token_path=kwargs.get("token_path", "secrets/token.json"),
         )
-        return read_daily_log_from_sheets(cfg)
+
+        dump_raw_path = kwargs.get("dump_raw_path")
+        return read_daily_log_from_sheets(cfg, dump_raw_path=dump_raw_path)
 
     raise ValueError(f"Unknown source: {source}. Expected 'csv' or 'sheets'.")
