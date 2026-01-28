@@ -59,6 +59,10 @@ def main() -> None:
     )
     args = parser.parse_args()
 
+    # Guard: dump-raw is only valid for Sheets input
+    if args.dump_raw and args.input_type != "sheets":
+        raise SystemExit("--dump-raw is only supported with --input-type sheets")
+
     out_path = Path(args.processed)
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
