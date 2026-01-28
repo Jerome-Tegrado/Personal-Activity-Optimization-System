@@ -29,3 +29,6 @@ reports/
 secrets/
 credentials.json
 token.json
+
+# Local environment variables (contains personal IDs / machine-specific settings)
+.env
