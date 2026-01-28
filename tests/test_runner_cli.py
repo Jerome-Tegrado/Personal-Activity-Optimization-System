@@ -106,6 +106,7 @@ def test_raw_out_requires_dump_raw(tmp_path: Path) -> None:
     combined = (result.stdout + result.stderr).lower()
     assert "--raw-out requires --dump-raw" in combined
 
+
 def test_csv_run_writes_outputs(tmp_path: Path) -> None:
     input_csv = tmp_path / "daily_log.csv"
     input_csv.write_text(
@@ -142,3 +143,31 @@ def test_csv_run_writes_outputs(tmp_path: Path) -> None:
 
     assert processed_path.exists()
     assert (out_dir / "summary.md").exists()
+
+
+def test_csv_missing_input_errors(tmp_path: Path) -> None:
+    missing_csv = tmp_path / "missing.csv"
+    out_dir = tmp_path / "reports"
+    processed_path = tmp_path / "daily_log_enriched.csv"
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "scripts/paos_run.py",
+            "all",
+            "--input-type",
+            "csv",
+            "--input",
+            str(missing_csv),
+            "--out",
+            str(out_dir),
+            "--processed",
+            str(processed_path),
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode != 0
+    combined = (result.stdout + result.stderr).lower()
+    assert "input csv not found" in combined

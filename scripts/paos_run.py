@@ -91,6 +91,9 @@ def main() -> None:
     # --- Ingest (unified) ---
     if args.input_type == "csv":
         input_path = Path(args.input)
+        if not input_path.exists():
+            raise SystemExit(f"Input CSV not found: {input_path}")
+
         df_raw = load_daily_log("csv", path=input_path)
         input_label = str(input_path)
 
