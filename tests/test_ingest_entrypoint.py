@@ -27,7 +27,7 @@ def test_load_daily_log_routes_to_csv(monkeypatch, tmp_path: Path) -> None:
 
 def test_load_daily_log_routes_to_sheets(monkeypatch) -> None:
     # Arrange: patch read_daily_log_from_sheets to avoid real API calls
-    def fake_read_daily_log_from_sheets(cfg) -> pd.DataFrame:
+    def fake_read_daily_log_from_sheets(cfg, dump_raw_path=None) -> pd.DataFrame:
         # We only care that cfg has the fields we passed in
         assert cfg.spreadsheet_id == "SHEET_ID"
         assert cfg.range_ == "Form Responses 1!A1:J"
