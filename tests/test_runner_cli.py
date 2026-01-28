@@ -70,3 +70,8 @@ def test_raw_out_creates_snapshot_for_sheets(tmp_path: Path) -> None:
     assert processed_path.exists()
     assert (out_dir / "summary.md").exists()
 
+    # Verify the snapshot looks like a raw Sheets/Forms export (pre-clean headers)
+    raw_text = raw_path.read_text(encoding="utf-8")
+    assert "Timestamp" in raw_text
+    assert "Did you exercise today?" in raw_text
+    assert "energy_focus" not in raw_text
