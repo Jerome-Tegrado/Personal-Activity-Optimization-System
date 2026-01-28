@@ -105,3 +105,40 @@ def test_raw_out_requires_dump_raw(tmp_path: Path) -> None:
     assert result.returncode != 0
     combined = (result.stdout + result.stderr).lower()
     assert "--raw-out requires --dump-raw" in combined
+
+def test_csv_run_writes_outputs(tmp_path: Path) -> None:
+    input_csv = tmp_path / "daily_log.csv"
+    input_csv.write_text(
+        "date,steps,energy_focus,did_exercise,notes\n"
+        "2026-01-01,8000,4,No,\n",
+        encoding="utf-8",
+    )
+
+    out_dir = tmp_path / "reports"
+    processed_path = tmp_path / "daily_log_enriched.csv"
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "scripts/paos_run.py",
+            "all",
+            "--input-type",
+            "csv",
+            "--input",
+            str(input_csv),
+            "--out",
+            str(out_dir),
+            "--processed",
+            str(processed_path),
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0
+
+    combined = (result.stdout + result.stderr).lower()
+    assert "paos run complete" in combined
+
+    assert processed_path.exists()
+    assert (out_dir / "summary.md").exists()
