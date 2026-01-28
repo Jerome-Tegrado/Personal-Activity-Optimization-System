@@ -68,6 +68,14 @@ def main() -> None:
     if args.dump_raw and args.input_type != "sheets":
         raise SystemExit("--dump-raw is only supported with --input-type sheets")
 
+    # Guard: raw-out should only be set when dump-raw is enabled
+    if (
+        args.input_type == "sheets"
+        and not args.dump_raw
+        and args.raw_out != "data/processed/sheets_raw.csv"
+    ):
+        raise SystemExit("--raw-out requires --dump-raw")
+
     out_path = Path(args.processed)
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
