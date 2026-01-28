@@ -171,3 +171,17 @@ def test_csv_missing_input_errors(tmp_path: Path) -> None:
     assert result.returncode != 0
     combined = (result.stdout + result.stderr).lower()
     assert "input csv not found" in combined
+
+
+def test_runner_version_flag() -> None:
+    result = subprocess.run(
+        [sys.executable, "scripts/paos_run.py", "--version"],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0
+    combined = (result.stdout + result.stderr).strip().lower()
+    assert "paos-run" in combined
+    assert "unknown" not in combined
+
