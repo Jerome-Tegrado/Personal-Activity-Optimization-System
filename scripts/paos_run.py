@@ -31,11 +31,11 @@ def main() -> None:
     # CSV inputs (default path kept)
     parser.add_argument("--input", default="data/sample/daily_log.csv", help="Input CSV path")
 
-    # Sheets inputs (required when --input-type sheets)
+    # Sheets inputs (optional now; can fallback to config/env)
     parser.add_argument("--sheet-id", default=None, help="Google Sheets spreadsheet ID")
     parser.add_argument(
         "--sheet-range",
-        default="Form Responses 1!A1:J",
+        default=None,
         help='Sheets A1 range, e.g. "Form Responses 1!A1:J"',
     )
 
@@ -76,22 +76,30 @@ def main() -> None:
         input_label = str(input_path)
 
     else:
-        if not args.sheet_id:
+        from paos.config import DEFAULT_SHEETS_ID, DEFAULT_SHEETS_RANGE
+        from paos.ingest.sheets_ingest import SheetsConfig, read_daily_log_from_sheets
+
+        sheet_id = (args.sheet_id or DEFAULT_SHEETS_ID).strip()
+        sheet_range = (args.sheet_range or DEFAULT_SHEETS_RANGE).strip()
+
+        if not sheet_id:
             raise SystemExit(
-                "Missing --sheet-id. Example:\n"
+                "Missing Sheets spreadsheet id.\n\n"
+                "Provide one of:\n"
+                '  1) CLI: --sheet-id "..." \n'
+                "  2) Env: set PAOS_SHEETS_ID\n\n"
+                "Example:\n"
                 'python scripts/paos_run.py all --input-type sheets --sheet-id "..." '
                 '--sheet-range "Form Responses 1!A1:J" --out reports'
             )
 
-        from paos.ingest.sheets_ingest import SheetsConfig, read_daily_log_from_sheets
-
         cfg = SheetsConfig(
-            spreadsheet_id=args.sheet_id,
-            range_=args.sheet_range,
+            spreadsheet_id=sheet_id,
+            range_=sheet_range,
         )
         df_raw = read_daily_log_from_sheets(cfg)
 
-        input_label = f"sheets:{args.sheet_id} ({args.sheet_range})"
+        input_label = f"sheets:{sheet_id} ({sheet_range})"
 
     # --- Transform / enrich ---
     df_enriched = enrich_fn(df_raw)
