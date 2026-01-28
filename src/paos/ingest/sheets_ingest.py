@@ -79,4 +79,72 @@ def read_daily_log_from_sheets(cfg: SheetsConfig) -> pd.DataFrame:
     }
     df = df.rename(columns=rename_map)
 
+    # --- Clean types/values ---
+
+    # timestamp -> datetime (used for dedupe)
+    if "timestamp" in df.columns:
+        df["timestamp"] = pd.to_datetime(df["timestamp"], errors="coerce")
+
+    # date -> YYYY-MM-DD string (stable key)
+    if "date" in df.columns:
+        df["date"] = pd.to_datetime(df["date"], errors="coerce").dt.strftime("%Y-%m-%d")
+
+    # steps: remove commas/spaces -> int
+    if "steps" in df.columns:
+        df["steps"] = (
+            df["steps"]
+            .astype(str)
+            .str.replace(",", "", regex=False)
+            .str.strip()
+        )
+        df["steps"] = pd.to_numeric(df["steps"], errors="coerce").astype("Int64")
+
+    # energy_focus -> int
+    if "energy_focus" in df.columns:
+        df["energy_focus"] = pd.to_numeric(df["energy_focus"], errors="coerce").astype("Int64")
+
+    # exercise_minutes -> int (blank allowed)
+    if "exercise_minutes" in df.columns:
+        df["exercise_minutes"] = pd.to_numeric(df["exercise_minutes"], errors="coerce").astype("Int64")
+
+    # did_exercise normalize to "Yes"/"No"
+    if "did_exercise" in df.columns:
+        df["did_exercise"] = (
+            df["did_exercise"]
+            .astype(str)
+            .str.strip()
+            .str.title()
+        )
+        df.loc[~df["did_exercise"].isin(["Yes", "No"]), "did_exercise"] = pd.NA
+
+    # heart_rate_zone normalize from verbose labels -> paos categories
+    if "heart_rate_zone" in df.columns:
+        z = df["heart_rate_zone"].astype(str).str.strip().str.lower()
+
+        def _map_zone(val: str) -> str:
+            if not val or val == "nan":
+                return ""
+            if val.startswith("light"):
+                return "light"
+            if val.startswith("moderate"):
+                return "moderate"
+            if val.startswith("intense"):
+                return "intense"
+            if val.startswith("peak"):
+                return "peak"
+            if "unknown" in val:
+                return "unknown"
+            return ""
+
+        df["heart_rate_zone"] = z.map(_map_zone)
+        df.loc[df["heart_rate_zone"] == "", "heart_rate_zone"] = pd.NA
+
+    # --- Dedupe: keep latest submission per date ---
+    if "date" in df.columns and "timestamp" in df.columns:
+        df = (
+            df.sort_values("timestamp")
+            .drop_duplicates(subset=["date"], keep="last")
+            .reset_index(drop=True)
+        )
+
     return df
