@@ -172,6 +172,25 @@ def main() -> None:
         st.info("Scatter plot needs `activity_level` and `energy_focus` data.")
 
     # -----------------------
+    # Lifestyle status counts
+    # -----------------------
+    st.subheader("Lifestyle status counts")
+
+    if "lifestyle_status" in filtered.columns and len(filtered) > 0:
+        counts = (
+            filtered["lifestyle_status"]
+            .dropna()
+            .value_counts()
+            .reset_index()
+        )
+        counts.columns = ["lifestyle_status", "days"]
+
+        fig3 = px.bar(counts, x="lifestyle_status", y="days")
+        st.plotly_chart(fig3, use_container_width=True)
+    else:
+        st.info("Status chart needs `lifestyle_status` data.")
+
+    # -----------------------
     # Preview
     # -----------------------
     st.subheader("Data preview")
