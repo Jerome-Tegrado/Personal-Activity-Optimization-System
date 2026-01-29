@@ -170,6 +170,22 @@ def main() -> None:
         st.info("No summary stats available for an empty filter.")
 
     # -----------------------
+    # Correlation (filtered)
+    # -----------------------
+    st.subheader("Correlation (filtered)")
+
+    if {"activity_level", "energy_focus"}.issubset(filtered.columns) and len(filtered) > 1:
+        corr_df = filtered[["activity_level", "energy_focus"]].dropna()
+
+        if len(corr_df) > 1:
+            r = corr_df["activity_level"].corr(corr_df["energy_focus"])
+            st.metric("Pearson r (Activity vs Energy)", f"{r:.3f}")
+        else:
+            st.info("Not enough non-missing rows to compute correlation.")
+    else:
+        st.info("Correlation needs `activity_level` and `energy_focus`, with at least 2 rows.")
+
+    # -----------------------
     # Activity trend (chart)
     # -----------------------
     st.subheader("Activity trend")
