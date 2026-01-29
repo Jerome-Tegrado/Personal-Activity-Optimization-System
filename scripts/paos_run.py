@@ -28,7 +28,7 @@ def main() -> None:
     )
 
     # ✅ add ingest stage
-    parser.add_argument("stage", choices=["all", "ingest"], help="Pipeline stage to run")
+    parser.add_argument("stage", choices=["all", "ingest", "transform"], help="Pipeline stage to run")
 
     # Input selection
     parser.add_argument(
@@ -149,6 +149,13 @@ def main() -> None:
     # --- Transform / enrich ---
     df_enriched = enrich_fn(df_raw)
     df_enriched.to_csv(out_path, index=False)
+
+    # ✅ NEW: transform-only stage exits early after writing enriched CSV
+    if args.stage == "transform":
+        print("PAOS transform complete")
+        print(f"- Input:  {input_label}")
+        print(f"- Output: {out_path}")
+        return
 
     # --- Summary + figures ---
     summary_path = out_dir / "summary.md"

@@ -41,7 +41,7 @@ def test_dump_raw_requires_sheets() -> None:
 def test_raw_out_creates_snapshot_for_sheets(tmp_path: Path) -> None:
     raw_path = tmp_path / "custom_raw.csv"
     out_dir = tmp_path / "reports"
-    processed_path = tmp_path / "daily_log_enriched.csv"
+    processed_path = tmp_path / "daily_log_transformed.csv"
 
     env = _subprocess_env_with_sitecustomize()
 
@@ -86,7 +86,6 @@ def test_raw_out_creates_snapshot_for_sheets(tmp_path: Path) -> None:
     assert "energy_focus" not in raw_text
 
 
-
 def test_raw_out_requires_dump_raw(tmp_path: Path) -> None:
     raw_path = tmp_path / "custom_raw.csv"
 
@@ -121,7 +120,7 @@ def test_csv_run_writes_outputs(tmp_path: Path) -> None:
     )
 
     out_dir = tmp_path / "reports"
-    processed_path = tmp_path / "daily_log_enriched.csv"
+    processed_path = tmp_path / "daily_log_transformed.csv"
 
     result = subprocess.run(
         [
@@ -189,10 +188,49 @@ def test_ingest_stage_writes_ingested_csv(tmp_path: Path) -> None:
     assert not (out_dir / "summary.md").exists()
 
 
+def test_transform_stage_writes_processed_csv(tmp_path: Path) -> None:
+    input_csv = tmp_path / "daily_log.csv"
+    input_csv.write_text(
+        "date,steps,energy_focus,did_exercise,notes\n"
+        "2026-01-01,8000,4,No,\n",
+        encoding="utf-8",
+    )
+
+    out_dir = tmp_path / "reports"
+    processed_path = tmp_path / "daily_log_transformed.csv"
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "scripts/paos_run.py",
+            "transform",
+            "--input-type",
+            "csv",
+            "--input",
+            str(input_csv),
+            "--out",
+            str(out_dir),
+            "--processed",
+            str(processed_path),
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0
+
+    combined = (result.stdout + result.stderr).lower()
+    assert "paos transform complete" in combined
+
+    assert processed_path.exists()
+    # Transform stage should NOT generate reports
+    assert not (out_dir / "summary.md").exists()
+
+
 def test_csv_missing_input_errors(tmp_path: Path) -> None:
     missing_csv = tmp_path / "missing.csv"
     out_dir = tmp_path / "reports"
-    processed_path = tmp_path / "daily_log_enriched.csv"
+    processed_path = tmp_path / "daily_log_transformed.csv"
 
     result = subprocess.run(
         [
