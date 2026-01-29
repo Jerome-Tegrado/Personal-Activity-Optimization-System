@@ -130,6 +130,14 @@ def main() -> None:
     if filtered.empty:
         st.info("No rows to show (empty dataset or date range filter returned 0 rows).")
 
+    st.download_button(
+        label="Download filtered CSV",
+        data=filtered.to_csv(index=False).encode("utf-8"),
+        file_name="paos_filtered.csv",
+        mime="text/csv",
+        disabled=filtered.empty,
+    )
+
     # -----------------------
     # Activity trend (chart)
     # -----------------------
