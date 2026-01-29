@@ -228,6 +228,24 @@ python scripts/paos_run.py report --processed data/processed/daily_log_enriched.
 
 ---
 
+## Dashboard (Streamlit)
+
+PAOS includes a simple Streamlit dashboard that loads the enriched CSV and lets you explore your results quickly.
+
+### Run the dashboard
+
+1) Generate an enriched CSV (example using sample data):
+
+```bash
+python scripts/paos_run.py transform --input-type csv --input data/sample/daily_log.csv --processed data/processed/daily_log_enriched.csv
+```
+
+2) Start Streamlit:
+
+python -m streamlit run streamlit_app.py
+
+---
+
 ## Quick start (my real workflow)
 
 1. **Clone**
