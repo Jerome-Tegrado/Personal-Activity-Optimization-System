@@ -3,14 +3,15 @@ from __future__ import annotations
 from pathlib import Path
 
 import pandas as pd
+import plotly.express as px
 import streamlit as st
 
 from paos.dashboard.data import (
     DashboardDataConfig,
-    load_enriched_csv,
-    validate_required_columns,
     coerce_date_column,
     filter_by_date_range,
+    load_enriched_csv,
+    validate_required_columns,
 )
 
 DEFAULT_ENRICHED_CSV = Path("data/processed/daily_log_enriched.csv")
@@ -65,7 +66,6 @@ def main() -> None:
         msg = str(e)
         st.warning(msg)
 
-        # If the error has a list, show it nicely too
         missing = [c for c in cfg.required_columns if c not in df.columns]
         if missing:
             st.warning(
@@ -125,6 +125,23 @@ def main() -> None:
 
     if filtered.empty:
         st.info("No rows to show (empty dataset or date range filter returned 0 rows).")
+
+    # -----------------------
+    # Activity trend (chart)
+    # -----------------------
+    st.subheader("Activity trend")
+
+    if (
+        "date" in filtered.columns
+        and "activity_level" in filtered.columns
+        and filtered["date"].notna().any()
+        and len(filtered) > 0
+    ):
+        chart_df = filtered.dropna(subset=["date"]).sort_values("date")
+        fig = px.line(chart_df, x="date", y="activity_level", markers=True)
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.info("Trend chart needs valid `date` and `activity_level` data.")
 
     # -----------------------
     # Preview
