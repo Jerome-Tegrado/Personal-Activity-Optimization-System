@@ -76,7 +76,7 @@ def main() -> None:
         ]
 
     st.subheader("Data preview")
-    st.dataframe(filtered, use_container_width=True)
+    st.dataframe(filtered, width="stretch")
 
 
 if __name__ == "__main__":
