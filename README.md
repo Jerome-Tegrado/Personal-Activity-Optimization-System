@@ -242,7 +242,9 @@ python scripts/paos_run.py transform --input-type csv --input data/sample/daily_
 
 2) Start Streamlit:
 
+```bash
 python -m streamlit run streamlit_app.py
+```
 
 ---
 
