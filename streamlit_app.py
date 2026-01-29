@@ -31,6 +31,10 @@ def main() -> None:
         "This dashboard loads the **enriched PAOS CSV** and helps you explore activity + energy trends."
     )
 
+    st.sidebar.header("Options")
+    show_checks = st.sidebar.checkbox("Show data checks", value=True)
+    show_preview = st.sidebar.checkbox("Show data preview", value=False)
+
     cfg = DashboardDataConfig()
 
     csv_path_str = st.text_input("Enriched CSV path", value=str(DEFAULT_ENRICHED_CSV))
@@ -56,32 +60,33 @@ def main() -> None:
     # -----------------------
     # Data checks (friendly)
     # -----------------------
-    st.subheader("Data checks")
+    if show_checks:
+        st.subheader("Data checks")
 
-    try:
-        validate_required_columns(df, cfg.required_columns)
-        st.success("Looks good — expected columns found.")
-    except ValueError as e:
-        msg = str(e)
-        st.warning(msg)
+        try:
+            validate_required_columns(df, cfg.required_columns)
+            st.success("Looks good — expected columns found.")
+        except ValueError as e:
+            msg = str(e)
+            st.warning(msg)
 
-        missing = [c for c in cfg.required_columns if c not in df.columns]
-        if missing:
-            st.warning(
-                "Some expected columns are missing:\n\n"
-                + "\n".join([f"- `{c}`" for c in missing])
+            missing = [c for c in cfg.required_columns if c not in df.columns]
+            if missing:
+                st.warning(
+                    "Some expected columns are missing:\n\n"
+                    + "\n".join([f"- `{c}`" for c in missing])
+                )
+
+            st.info(
+                "This can happen if you loaded a non-enriched CSV. "
+                "Try generating the enriched file using the transform stage."
             )
 
-        st.info(
-            "This can happen if you loaded a non-enriched CSV. "
-            "Try generating the enriched file using the transform stage."
-        )
-
-    if "date" in df.columns:
-        if df["date"].isna().all() and len(df) > 0:
-            st.warning(
-                "The `date` column exists, but none of the values could be parsed as valid dates."
-            )
+        if "date" in df.columns:
+            if df["date"].isna().all() and len(df) > 0:
+                st.warning(
+                    "The `date` column exists, but none of the values could be parsed as valid dates."
+                )
 
     # -----------------------
     # Quick metrics
@@ -158,7 +163,9 @@ def main() -> None:
         if "date" in scatter_df.columns:
             hover_cols = ["date"] + hover_cols
 
-        color_col = "lifestyle_status" if "lifestyle_status" in scatter_df.columns else None
+        color_col = (
+            "lifestyle_status" if "lifestyle_status" in scatter_df.columns else None
+        )
 
         fig2 = px.scatter(
             scatter_df,
@@ -177,12 +184,7 @@ def main() -> None:
     st.subheader("Lifestyle status counts")
 
     if "lifestyle_status" in filtered.columns and len(filtered) > 0:
-        counts = (
-            filtered["lifestyle_status"]
-            .dropna()
-            .value_counts()
-            .reset_index()
-        )
+        counts = filtered["lifestyle_status"].dropna().value_counts().reset_index()
         counts.columns = ["lifestyle_status", "days"]
 
         fig3 = px.bar(counts, x="lifestyle_status", y="days")
@@ -193,8 +195,9 @@ def main() -> None:
     # -----------------------
     # Preview
     # -----------------------
-    st.subheader("Data preview")
-    st.dataframe(filtered, width="stretch")
+    if show_preview:
+        st.subheader("Data preview")
+        st.dataframe(filtered, width="stretch")
 
 
 if __name__ == "__main__":
