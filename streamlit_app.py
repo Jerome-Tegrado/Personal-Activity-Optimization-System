@@ -62,7 +62,6 @@ def main() -> None:
         validate_required_columns(df, cfg.required_columns)
         st.success("Looks good — expected columns found.")
     except ValueError as e:
-        # Keep your friendly UX: show missing columns, plus guidance.
         msg = str(e)
         st.warning(msg)
 
@@ -142,6 +141,35 @@ def main() -> None:
         st.plotly_chart(fig, use_container_width=True)
     else:
         st.info("Trend chart needs valid `date` and `activity_level` data.")
+
+    # -----------------------
+    # Activity vs Energy (scatter)
+    # -----------------------
+    st.subheader("Activity vs Energy/Focus")
+
+    if (
+        "activity_level" in filtered.columns
+        and "energy_focus" in filtered.columns
+        and len(filtered) > 0
+    ):
+        scatter_df = filtered.dropna(subset=["activity_level", "energy_focus"]).copy()
+        hover_cols = ["activity_level", "energy_focus"]
+
+        if "date" in scatter_df.columns:
+            hover_cols = ["date"] + hover_cols
+
+        color_col = "lifestyle_status" if "lifestyle_status" in scatter_df.columns else None
+
+        fig2 = px.scatter(
+            scatter_df,
+            x="activity_level",
+            y="energy_focus",
+            hover_data=hover_cols,
+            color=color_col,
+        )
+        st.plotly_chart(fig2, use_container_width=True)
+    else:
+        st.info("Scatter plot needs `activity_level` and `energy_focus` data.")
 
     # -----------------------
     # Preview
