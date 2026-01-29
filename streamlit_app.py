@@ -34,6 +34,7 @@ def main() -> None:
     st.sidebar.header("Options")
     show_checks = st.sidebar.checkbox("Show data checks", value=True)
     show_preview = st.sidebar.checkbox("Show data preview", value=False)
+    trend_granularity = st.sidebar.selectbox("Trend granularity", ["Daily", "Weekly"])
 
     cfg = DashboardDataConfig()
 
@@ -197,7 +198,18 @@ def main() -> None:
         and len(filtered) > 0
     ):
         chart_df = filtered.dropna(subset=["date"]).sort_values("date")
-        fig = px.line(chart_df, x="date", y="activity_level", markers=True)
+
+        if trend_granularity == "Weekly":
+            weekly = (
+                chart_df.set_index("date")["activity_level"]
+                .resample("W")
+                .mean()
+                .reset_index()
+            )
+            fig = px.line(weekly, x="date", y="activity_level", markers=True)
+        else:
+            fig = px.line(chart_df, x="date", y="activity_level", markers=True)
+
         st.plotly_chart(fig, use_container_width=True)
     else:
         st.info("Trend chart needs valid `date` and `activity_level` data.")
