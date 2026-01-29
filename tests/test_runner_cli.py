@@ -52,6 +52,10 @@ def test_raw_out_creates_snapshot_for_sheets(tmp_path: Path) -> None:
             "all",
             "--input-type",
             "sheets",
+            "--sheet-id",
+            "TEST_SHEET_ID",
+            "--sheet-range",
+            "Form Responses 1!A1:J",
             "--dump-raw",
             "--raw-out",
             str(raw_path),
@@ -80,6 +84,7 @@ def test_raw_out_creates_snapshot_for_sheets(tmp_path: Path) -> None:
     assert "Timestamp" in raw_text
     assert "Did you exercise today?" in raw_text
     assert "energy_focus" not in raw_text
+
 
 
 def test_raw_out_requires_dump_raw(tmp_path: Path) -> None:
@@ -145,6 +150,45 @@ def test_csv_run_writes_outputs(tmp_path: Path) -> None:
     assert (out_dir / "summary.md").exists()
 
 
+def test_ingest_stage_writes_ingested_csv(tmp_path: Path) -> None:
+    input_csv = tmp_path / "daily_log.csv"
+    input_csv.write_text(
+        "date,steps,energy_focus,did_exercise,notes\n"
+        "2026-01-01,8000,4,No,\n",
+        encoding="utf-8",
+    )
+
+    out_dir = tmp_path / "reports"
+    processed_path = tmp_path / "daily_log_ingested.csv"
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "scripts/paos_run.py",
+            "ingest",
+            "--input-type",
+            "csv",
+            "--input",
+            str(input_csv),
+            "--out",
+            str(out_dir),
+            "--processed",
+            str(processed_path),
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0
+
+    combined = (result.stdout + result.stderr).lower()
+    assert "paos ingest complete" in combined
+
+    assert processed_path.exists()
+    # Ingest stage should NOT generate reports
+    assert not (out_dir / "summary.md").exists()
+
+
 def test_csv_missing_input_errors(tmp_path: Path) -> None:
     missing_csv = tmp_path / "missing.csv"
     out_dir = tmp_path / "reports"
@@ -184,4 +228,3 @@ def test_runner_version_flag() -> None:
     combined = (result.stdout + result.stderr).strip().lower()
     assert "paos-run" in combined
     assert "unknown" not in combined
-

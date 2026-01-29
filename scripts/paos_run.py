@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+import paos
 from paos.viz.export import export_figures
 
 
@@ -19,7 +20,15 @@ def _pick_fn(module, candidates: tuple[str, ...]):
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="PAOS pipeline runner")
-    parser.add_argument("stage", choices=["all"], help="Pipeline stage to run")
+
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"paos-run {getattr(paos, '__version__', 'unknown')}",
+    )
+
+    # ✅ add ingest stage
+    parser.add_argument("stage", choices=["all", "ingest"], help="Pipeline stage to run")
 
     # Input selection
     parser.add_argument(
@@ -123,6 +132,19 @@ def main() -> None:
             dump_raw_path=dump_raw_path,
         )
         input_label = f"sheets:{sheet_id} ({sheet_range})"
+
+    # ✅ NEW: ingest-only stage exits early after writing ingested CSV
+    if args.stage == "ingest":
+        df_raw.to_csv(out_path, index=False)
+
+        print("PAOS ingest complete")
+        print(f"- Input:  {input_label}")
+        print(f"- Output: {out_path}")
+
+        if args.input_type == "sheets" and args.dump_raw:
+            print(f"- Raw:    {args.raw_out}")
+
+        return
 
     # --- Transform / enrich ---
     df_enriched = enrich_fn(df_raw)
