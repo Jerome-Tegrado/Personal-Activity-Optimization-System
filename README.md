@@ -36,7 +36,7 @@ source .venv/bin/activate  # Windows: .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 
 # Generate public demo outputs into reports_demo/
-python scripts/paos_run.py all --input data/sample/daily_log.csv --out reports_demo
+python scripts/paos_run.py all --input-type csv --input data/sample/daily_log.csv --out reports_demo
 
 ls reports_demo/figures/interactive/
 ls reports_demo/figures/static/
@@ -144,7 +144,7 @@ If you're on Windows/PowerShell, you can use the helper script:
 
 * Google Forms → Google Sheets (my default logging method)
 * CSV files (local storage)
-* gspread (Sheets API integration - v2)
+* Official Google Sheets API (OAuth + token caching)
 
 **Testing & Quality**
 
@@ -190,6 +190,44 @@ paos/
 
 ---
 
+## Runner stages (v2)
+
+PAOS supports running smaller parts of the pipeline to debug faster.
+
+### 1) all (default)
+
+Runs ingest → transform → report.
+
+```bash
+python scripts/paos_run.py all --input-type csv --input data/sample/daily_log.csv --out reports_demo
+```
+
+### 2) ingest
+
+Loads and cleans the input, then writes the ingested CSV to `--processed` (no scoring, no charts).
+
+```bash
+python scripts/paos_run.py ingest --input-type csv --input data/sample/daily_log.csv --processed data/processed/daily_log_ingested.csv
+```
+
+### 3) transform
+
+Scores/enriches the data and writes the enriched CSV to `--processed` (no charts).
+
+```bash
+python scripts/paos_run.py transform --input-type csv --input data/sample/daily_log.csv --processed data/processed/daily_log_enriched.csv
+```
+
+### 4) report
+
+Generates `summary.md` + figures from an already-enriched CSV (no ingest, no scoring).
+
+```bash
+python scripts/paos_run.py report --processed data/processed/daily_log_enriched.csv --out reports_demo
+```
+
+---
+
 ## Quick start (my real workflow)
 
 1. **Clone**
@@ -212,14 +250,47 @@ pip install -r requirements.txt
 * Google Forms → Google Sheets (default)
 * or Local CSV (offline)
 
-4. **Run the pipeline**
+4. **Run the pipeline (CSV)**
 
 ```bash
-python scripts/paos_run.py all --input data/raw/daily_log.csv --out reports
+python scripts/paos_run.py all --input-type csv --input data/raw/daily_log.csv --out reports
+```
+
+5. **Run the pipeline (Sheets)**
+
+```bash
+python scripts/paos_run.py all --input-type sheets --sheet-id "<YOUR_ID>" --sheet-range "Form Responses 1!A1:J" --out reports
 ```
 
 > I keep `data/raw/` private and generate local outputs into `reports/` (ignored).
 > For GitHub demos, I run against `data/sample/` and output to `reports_demo/`.
+
+---
+
+## Sheets setup (OAuth + env defaults)
+
+PAOS supports environment defaults so you don’t need to pass `--sheet-id` and `--sheet-range` every time.
+
+Create a `.env` file locally (it is gitignored). Use `.env.example` as a template:
+
+```bash
+PAOS_SHEETS_ID=your_sheet_id_here
+PAOS_SHEETS_RANGE=Form Responses 1!A1:J
+```
+
+Then you can run:
+
+```bash
+python scripts/paos_run.py all --input-type sheets --out reports
+```
+
+### Optional: dump a raw Sheets snapshot (debug)
+
+When Sheets data changes or breaks, you can export the exact raw pull (pre-clean) to a CSV:
+
+```bash
+python scripts/paos_run.py all --input-type sheets --dump-raw --raw-out data/processed/sheets_raw.csv --out reports
+```
 
 ---
 
@@ -252,22 +323,16 @@ I use a Google Form with **conditional sections**, so the exercise fields only a
 
 Questions (all Required in this section):
 
-* **exercise_type** → *Dropdown*
-
-  * Options: `cardio`, `strength`, `mobility`, `sports`
-* **exercise_minutes** → *Short answer*
-
-  * Validation: number, integer, min 1 (optional max 300)
-* **heart_rate_zone** → *Dropdown*
-
-  * Options: `light`, `moderate`, `intense`, `peak`, `unknown` (optional)
+* **exercise_type** → *Dropdown* (cardio/strength/mobility/sports)
+* **exercise_minutes** → *Short answer* (integer minutes)
+* **heart_rate_zone** → *Dropdown* (light/moderate/intense/peak/unknown)
 
 **Section 3 — Notes (Optional)**
 **Description (paste into Google Forms):**
 
 > I use this for optional context that might explain my activity or energy (e.g., stress, sleep, travel, sickness). I avoid sensitive details if I plan to export/share summaries later.
 
-Questions:
+Question:
 
 * **notes** → *Paragraph* (Optional)
 
@@ -465,7 +530,7 @@ Outputs (in the chosen output directory):
 ## Pipeline contract (what my script does)
 
 ```bash
-python scripts/paos_run.py all --input <csv_path> --out <output_dir>
+python scripts/paos_run.py all --input-type csv --input <csv_path> --out <output_dir>
 ```
 
 Outputs:
@@ -501,7 +566,7 @@ pytest tests/ -v
 
 ## Roadmap
 
-### v1 (MVP) - Current
+### v1 (MVP) - Completed
 
 * ✅ CSV ingestion
 * ✅ Flexible logging (exercise fields can be blank)
@@ -514,9 +579,9 @@ pytest tests/ -v
 * ✅ Unit tests
 * ✅ GitHub Actions CI
 
-### v2 (Enhanced)
+### v2 (Enhanced) - In progress
 
-* Google Sheets ingestion via API
+* ✅ Google Sheets ingestion via official API
 * Streamlit dashboard with filters
 * Automated weekly report generator
 * Trend-aware recommendations
@@ -569,7 +634,6 @@ MIT License.
 
 * Google Sheets API (Python quickstart): [https://developers.google.com/workspace/sheets/api/quickstart/python](https://developers.google.com/workspace/sheets/api/quickstart/python)
 * DuckDB Python docs: [https://duckdb.org/docs/stable/clients/python/overview](https://duckdb.org/docs/stable/clients/python/overview)
-* gspread docs: [https://docs.gspread.org/en/latest/](https://docs.gspread.org/en/latest/)
 * Plotly Python docs: [https://plotly.com/python/](https://plotly.com/python/)
 * Streamlit docs: [https://docs.streamlit.io/](https://docs.streamlit.io/)
 * Heart Rate Training Zones basics: [https://www.polar.com/blog/running-heart-rate-zones-basics/](https://www.polar.com/blog/running-heart-rate-zones-basics/)
