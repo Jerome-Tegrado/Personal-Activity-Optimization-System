@@ -5,17 +5,21 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
+from paos.dashboard.data import (
+    DashboardDataConfig,
+    load_enriched_csv,
+    validate_required_columns,
+    coerce_date_column,
+    filter_by_date_range,
+)
 
 DEFAULT_ENRICHED_CSV = Path("data/processed/daily_log_enriched.csv")
 
-REQUIRED_COLUMNS = ("date", "steps", "energy_focus", "activity_level")
-
 
 @st.cache_data
-def load_enriched_csv(path: Path) -> pd.DataFrame:
-    if not path.exists():
-        raise FileNotFoundError(f"Enriched CSV not found: {path}")
-    return pd.read_csv(path)
+def _load_cached(path_str: str) -> pd.DataFrame:
+    # cache_data prefers hashable inputs; strings are safest
+    return load_enriched_csv(Path(path_str))
 
 
 def main() -> None:
@@ -26,11 +30,13 @@ def main() -> None:
         "This dashboard loads the **enriched PAOS CSV** and helps you explore activity + energy trends."
     )
 
+    cfg = DashboardDataConfig()
+
     csv_path_str = st.text_input("Enriched CSV path", value=str(DEFAULT_ENRICHED_CSV))
     csv_path = Path(csv_path_str)
 
     try:
-        df = load_enriched_csv(csv_path)
+        df = _load_cached(str(csv_path))
     except FileNotFoundError:
         st.error(
             f"Could not find the enriched CSV at: `{csv_path}`\n\n"
@@ -40,27 +46,37 @@ def main() -> None:
         )
         st.stop()
 
-    # Date parsing (if date exists)
+    # -----------------------
+    # Parse date (safe)
+    # -----------------------
     if "date" in df.columns:
-        df["date"] = pd.to_datetime(df["date"], errors="coerce")
+        df = coerce_date_column(df, col="date")
 
     # -----------------------
     # Data checks (friendly)
     # -----------------------
     st.subheader("Data checks")
 
-    missing = [c for c in REQUIRED_COLUMNS if c not in df.columns]
-    if missing:
-        st.warning(
-            "Some expected columns are missing:\n\n"
-            + "\n".join([f"- `{c}`" for c in missing])
-        )
+    try:
+        validate_required_columns(df, cfg.required_columns)
+        st.success("Looks good — expected columns found.")
+    except ValueError as e:
+        # Keep your friendly UX: show missing columns, plus guidance.
+        msg = str(e)
+        st.warning(msg)
+
+        # If the error has a list, show it nicely too
+        missing = [c for c in cfg.required_columns if c not in df.columns]
+        if missing:
+            st.warning(
+                "Some expected columns are missing:\n\n"
+                + "\n".join([f"- `{c}`" for c in missing])
+            )
+
         st.info(
             "This can happen if you loaded a non-enriched CSV. "
             "Try generating the enriched file using the transform stage."
         )
-    else:
-        st.success("Looks good — expected columns found.")
 
     if "date" in df.columns:
         if df["date"].isna().all() and len(df) > 0:
@@ -68,6 +84,9 @@ def main() -> None:
                 "The `date` column exists, but none of the values could be parsed as valid dates."
             )
 
+    # -----------------------
+    # Quick metrics
+    # -----------------------
     st.subheader("Quick metrics")
 
     col1, col2, col3 = st.columns(3)
@@ -87,6 +106,9 @@ def main() -> None:
         else:
             st.metric("Avg Energy/Focus", "N/A")
 
+    # -----------------------
+    # Filter
+    # -----------------------
     st.subheader("Filter")
 
     filtered = df.copy()
@@ -97,13 +119,16 @@ def main() -> None:
 
         start, end = st.date_input("Date range", value=(min_date, max_date))
 
-        filtered = filtered[
-            (filtered["date"].dt.date >= start) & (filtered["date"].dt.date <= end)
-        ]
+        start_ts = pd.Timestamp(start) if start else None
+        end_ts = pd.Timestamp(end) if end else None
+        filtered = filter_by_date_range(filtered, start=start_ts, end=end_ts, col="date")
 
     if filtered.empty:
         st.info("No rows to show (empty dataset or date range filter returned 0 rows).")
 
+    # -----------------------
+    # Preview
+    # -----------------------
     st.subheader("Data preview")
     st.dataframe(filtered, width="stretch")
 
