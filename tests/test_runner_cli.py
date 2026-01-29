@@ -188,29 +188,6 @@ def test_ingest_stage_writes_ingested_csv(tmp_path: Path) -> None:
     assert not (out_dir / "summary.md").exists()
 
 
-def test_report_stage_missing_processed_csv_errors(tmp_path: Path) -> None:
-    missing = tmp_path / "missing_enriched.csv"
-    out_dir = tmp_path / "reports"
-
-    result = subprocess.run(
-        [
-            sys.executable,
-            "scripts/paos_run.py",
-            "report",
-            "--processed",
-            str(missing),
-            "--out",
-            str(out_dir),
-        ],
-        capture_output=True,
-        text=True,
-    )
-
-    assert result.returncode != 0
-    combined = (result.stdout + result.stderr).lower()
-    assert "processed csv not found for report stage" in combined
-
-
 def test_transform_stage_writes_processed_csv(tmp_path: Path) -> None:
     input_csv = tmp_path / "daily_log.csv"
     input_csv.write_text(
@@ -248,6 +225,86 @@ def test_transform_stage_writes_processed_csv(tmp_path: Path) -> None:
     assert processed_path.exists()
     # Transform stage should NOT generate reports
     assert not (out_dir / "summary.md").exists()
+
+
+def test_report_stage_missing_processed_csv_errors(tmp_path: Path) -> None:
+    missing = tmp_path / "missing_enriched.csv"
+    out_dir = tmp_path / "reports"
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "scripts/paos_run.py",
+            "report",
+            "--processed",
+            str(missing),
+            "--out",
+            str(out_dir),
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode != 0
+    combined = (result.stdout + result.stderr).lower()
+    assert "processed csv not found for report stage" in combined
+
+
+def test_report_stage_generates_summary_from_enriched_csv(tmp_path: Path) -> None:
+    # 1) Create a tiny input CSV
+    input_csv = tmp_path / "daily_log.csv"
+    input_csv.write_text(
+        "date,steps,energy_focus,did_exercise,notes\n"
+        "2026-01-01,8000,4,No,\n",
+        encoding="utf-8",
+    )
+
+    # 2) Run transform to produce an enriched CSV
+    enriched_path = tmp_path / "daily_log_enriched.csv"
+    transform_out_dir = tmp_path / "transform_reports"
+
+    transform_result = subprocess.run(
+        [
+            sys.executable,
+            "scripts/paos_run.py",
+            "transform",
+            "--input-type",
+            "csv",
+            "--input",
+            str(input_csv),
+            "--processed",
+            str(enriched_path),
+            "--out",
+            str(transform_out_dir),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert transform_result.returncode == 0
+    assert enriched_path.exists()
+
+    # 3) Run report using the enriched CSV (no ingestion, no scoring)
+    report_out_dir = tmp_path / "report_outputs"
+    report_result = subprocess.run(
+        [
+            sys.executable,
+            "scripts/paos_run.py",
+            "report",
+            "--processed",
+            str(enriched_path),
+            "--out",
+            str(report_out_dir),
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+    assert report_result.returncode == 0
+    combined = (report_result.stdout + report_result.stderr).lower()
+    assert "paos report complete" in combined
+
+    # Report outputs should exist
+    assert (report_out_dir / "summary.md").exists()
 
 
 def test_csv_missing_input_errors(tmp_path: Path) -> None:
