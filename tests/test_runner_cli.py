@@ -41,7 +41,7 @@ def test_dump_raw_requires_sheets() -> None:
 def test_raw_out_creates_snapshot_for_sheets(tmp_path: Path) -> None:
     raw_path = tmp_path / "custom_raw.csv"
     out_dir = tmp_path / "reports"
-    processed_path = tmp_path / "daily_log_transformed.csv"
+    processed_path = tmp_path / "daily_log_enriched.csv"
 
     env = _subprocess_env_with_sitecustomize()
 
@@ -120,7 +120,7 @@ def test_csv_run_writes_outputs(tmp_path: Path) -> None:
     )
 
     out_dir = tmp_path / "reports"
-    processed_path = tmp_path / "daily_log_transformed.csv"
+    processed_path = tmp_path / "daily_log_enriched.csv"
 
     result = subprocess.run(
         [
@@ -188,6 +188,29 @@ def test_ingest_stage_writes_ingested_csv(tmp_path: Path) -> None:
     assert not (out_dir / "summary.md").exists()
 
 
+def test_report_stage_missing_processed_csv_errors(tmp_path: Path) -> None:
+    missing = tmp_path / "missing_enriched.csv"
+    out_dir = tmp_path / "reports"
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "scripts/paos_run.py",
+            "report",
+            "--processed",
+            str(missing),
+            "--out",
+            str(out_dir),
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode != 0
+    combined = (result.stdout + result.stderr).lower()
+    assert "processed csv not found for report stage" in combined
+
+
 def test_transform_stage_writes_processed_csv(tmp_path: Path) -> None:
     input_csv = tmp_path / "daily_log.csv"
     input_csv.write_text(
@@ -197,7 +220,7 @@ def test_transform_stage_writes_processed_csv(tmp_path: Path) -> None:
     )
 
     out_dir = tmp_path / "reports"
-    processed_path = tmp_path / "daily_log_transformed.csv"
+    processed_path = tmp_path / "daily_log_enriched.csv"
 
     result = subprocess.run(
         [
@@ -230,7 +253,7 @@ def test_transform_stage_writes_processed_csv(tmp_path: Path) -> None:
 def test_csv_missing_input_errors(tmp_path: Path) -> None:
     missing_csv = tmp_path / "missing.csv"
     out_dir = tmp_path / "reports"
-    processed_path = tmp_path / "daily_log_transformed.csv"
+    processed_path = tmp_path / "daily_log_enriched.csv"
 
     result = subprocess.run(
         [

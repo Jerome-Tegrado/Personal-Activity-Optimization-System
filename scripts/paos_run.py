@@ -28,7 +28,7 @@ def main() -> None:
     )
 
     # ✅ add ingest stage
-    parser.add_argument("stage", choices=["all", "ingest", "transform"], help="Pipeline stage to run")
+    parser.add_argument("stage", choices=["all", "ingest", "transform", "report"], help="Pipeline stage to run")
 
     # Input selection
     parser.add_argument(
@@ -96,6 +96,25 @@ def main() -> None:
     from paos.ingest import load_daily_log
 
     enrich_fn = _pick_fn(scoring, ("enrich_daily_log", "enrich", "score_and_enrich", "add_scores"))
+
+    # ✅ NEW: report-only stage (build summary + figures from an existing enriched CSV)
+    if args.stage == "report":
+        import pandas as pd
+
+        if not out_path.exists():
+            raise SystemExit(f"Processed CSV not found for report stage: {out_path}")
+
+        df_enriched = pd.read_csv(out_path)
+
+        summary_path = out_dir / "summary.md"
+        write_weekly_summary(df_enriched, summary_path)
+        export_figures(df_enriched, out_dir)
+
+        print("PAOS report complete")
+        print(f"- Input:   {out_path}")
+        print(f"- Out dir: {out_dir}")
+        print(f"- Summary: {summary_path}")
+        return
 
     # --- Ingest (unified) ---
     if args.input_type == "csv":
