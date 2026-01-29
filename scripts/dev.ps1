@@ -1,6 +1,6 @@
 param(
   [Parameter(Mandatory=$true)]
-  [ValidateSet("setup","lint","test","demo")]
+  [ValidateSet("setup","lint","test","demo","dashboard")]
   [string]$Task
 )
 
@@ -26,5 +26,10 @@ if ($Task -eq "test") {
 
 if ($Task -eq "demo") {
   python scripts\paos_run.py all --input data\sample\daily_log.csv --out reports_demo
+  exit 0
+}
+
+if ($Task -eq "dashboard") {
+  python -m streamlit run streamlit_app.py
   exit 0
 }
