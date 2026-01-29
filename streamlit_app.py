@@ -10,6 +10,7 @@ from paos.dashboard.data import (
     DashboardDataConfig,
     coerce_date_column,
     filter_by_date_range,
+    hr_zone_breakdown,
     load_enriched_csv,
     validate_required_columns,
 )
@@ -302,6 +303,26 @@ def main() -> None:
             )
     else:
         st.info("Status chart needs data (current filter is empty).")
+
+    # -----------------------
+    # Heart Rate Zone Breakdown
+    # -----------------------
+    st.subheader("Heart Rate Zone Breakdown")
+
+    if {"did_exercise", "heart_rate_zone"}.issubset(filtered.columns) and len(filtered) > 0:
+        metric_label = st.radio(
+            "Measure",
+            options=["Exercise Days", "Exercise Minutes"],
+            horizontal=True,
+        )
+        metric = "days" if metric_label == "Exercise Days" else "minutes"
+
+        zone_df = hr_zone_breakdown(filtered, metric=metric)
+
+        fig_zone = px.bar(zone_df, x="heart_rate_zone", y="value")
+        st.plotly_chart(fig_zone, use_container_width=True)
+    else:
+        st.info("HR zone chart needs `did_exercise` and `heart_rate_zone` data.")
 
     # -----------------------
     # Preview
