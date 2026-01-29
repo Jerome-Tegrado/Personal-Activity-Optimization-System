@@ -8,6 +8,8 @@ import streamlit as st
 
 DEFAULT_ENRICHED_CSV = Path("data/processed/daily_log_enriched.csv")
 
+REQUIRED_COLUMNS = ("date", "steps", "energy_focus", "activity_level")
+
 
 @st.cache_data
 def load_enriched_csv(path: Path) -> pd.DataFrame:
@@ -38,9 +40,33 @@ def main() -> None:
         )
         st.stop()
 
-    # Basic cleanup for date filtering (if date exists)
+    # Date parsing (if date exists)
     if "date" in df.columns:
         df["date"] = pd.to_datetime(df["date"], errors="coerce")
+
+    # -----------------------
+    # Data checks (friendly)
+    # -----------------------
+    st.subheader("Data checks")
+
+    missing = [c for c in REQUIRED_COLUMNS if c not in df.columns]
+    if missing:
+        st.warning(
+            "Some expected columns are missing:\n\n"
+            + "\n".join([f"- `{c}`" for c in missing])
+        )
+        st.info(
+            "This can happen if you loaded a non-enriched CSV. "
+            "Try generating the enriched file using the transform stage."
+        )
+    else:
+        st.success("Looks good — expected columns found.")
+
+    if "date" in df.columns:
+        if df["date"].isna().all() and len(df) > 0:
+            st.warning(
+                "The `date` column exists, but none of the values could be parsed as valid dates."
+            )
 
     st.subheader("Quick metrics")
 
@@ -50,13 +76,13 @@ def main() -> None:
         st.metric("Days logged", len(df))
 
     with col2:
-        if "activity_level" in df.columns:
+        if "activity_level" in df.columns and len(df) > 0:
             st.metric("Avg Activity Level", f"{df['activity_level'].mean():.1f}")
         else:
             st.metric("Avg Activity Level", "N/A")
 
     with col3:
-        if "energy_focus" in df.columns:
+        if "energy_focus" in df.columns and len(df) > 0:
             st.metric("Avg Energy/Focus", f"{df['energy_focus'].mean():.2f}")
         else:
             st.metric("Avg Energy/Focus", "N/A")
@@ -74,6 +100,9 @@ def main() -> None:
         filtered = filtered[
             (filtered["date"].dt.date >= start) & (filtered["date"].dt.date <= end)
         ]
+
+    if filtered.empty:
+        st.info("No rows to show (empty dataset or date range filter returned 0 rows).")
 
     st.subheader("Data preview")
     st.dataframe(filtered, width="stretch")
