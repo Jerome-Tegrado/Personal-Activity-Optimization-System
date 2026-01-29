@@ -6,6 +6,8 @@ from paos.dashboard.data import (
     validate_required_columns,
     coerce_date_column,
     filter_by_date_range,
+    hr_zone_breakdown,
+    HR_ZONE_ORDER,
 )
 
 
@@ -51,3 +53,48 @@ def test_filter_by_date_range_inclusive_bounds():
         end=pd.Timestamp("2026-01-03"),
     )
     assert out["steps"].tolist() == [2, 3]
+
+
+def test_hr_zone_breakdown_days_stable_order_and_filters_non_exercise():
+    df = pd.DataFrame(
+        {
+            "did_exercise": ["Yes", "No", "Yes", "Yes"],
+            "heart_rate_zone": ["moderate", "", "intense", "moderate"],
+            "exercise_minutes": [30, None, 45, 20],
+        }
+    )
+
+    out = hr_zone_breakdown(df, metric="days")
+
+    # Always includes all zones in the same order
+    assert out["heart_rate_zone"].tolist() == HR_ZONE_ORDER
+
+    # Only exercised rows count; the blank zone row was "No", so it shouldn't show as unknown
+    values = dict(zip(out["heart_rate_zone"], out["value"]))
+    assert values["moderate"] == 2
+    assert values["intense"] == 1
+    assert values["unknown"] == 0
+
+
+def test_hr_zone_breakdown_minutes_sums_minutes_and_coerces_bad_values():
+    df = pd.DataFrame(
+        {
+            "did_exercise": ["Yes", "Yes", "Yes"],
+            "heart_rate_zone": ["light", "peak", "peak"],
+            "exercise_minutes": ["15", "not-a-number", 20],
+        }
+    )
+
+    out = hr_zone_breakdown(df, metric="minutes")
+    values = dict(zip(out["heart_rate_zone"], out["value"]))
+
+    assert values["light"] == 15
+    assert values["peak"] == 20  # bad value -> 0, so 0 + 20
+
+
+def test_hr_zone_breakdown_invalid_metric_raises():
+    df = pd.DataFrame(
+        {"did_exercise": ["Yes"], "heart_rate_zone": ["light"], "exercise_minutes": [10]}
+    )
+    with pytest.raises(ValueError):
+        hr_zone_breakdown(df, metric="invalid")

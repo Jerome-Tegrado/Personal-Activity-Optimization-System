@@ -15,6 +15,8 @@ DEFAULT_REQUIRED_COLUMNS = [
     "lifestyle_status",
 ]
 
+HR_ZONE_ORDER = ["light", "moderate", "intense", "peak", "unknown"]
+
 
 @dataclass(frozen=True)
 class DashboardDataConfig:
@@ -59,4 +61,51 @@ def filter_by_date_range(
         out = out[out[col] >= start]
     if end is not None:
         out = out[out[col] <= end]
+    return out
+
+
+def hr_zone_breakdown(df: pd.DataFrame, metric: str = "days") -> pd.DataFrame:
+    """
+    Summarize heart_rate_zone for exercised days with stable ordering.
+
+    metric:
+      - "days": count exercised rows per zone
+      - "minutes": sum exercise_minutes per zone
+    """
+    if metric not in {"days", "minutes"}:
+        raise ValueError("metric must be 'days' or 'minutes'")
+
+    # Always return the same categories in the same order
+    if df.empty:
+        out = pd.DataFrame({"heart_rate_zone": HR_ZONE_ORDER, "value": [0] * len(HR_ZONE_ORDER)})
+        out["heart_rate_zone"] = pd.Categorical(out["heart_rate_zone"], categories=HR_ZONE_ORDER, ordered=True)
+        return out
+
+    dfx = df.copy()
+
+    # Keep only rows where exercise happened
+    did = dfx["did_exercise"].astype(str).str.strip().str.lower()
+    dfx = dfx[did == "yes"]
+
+    # Normalize zones (blank/NaN -> unknown)
+    dfx["heart_rate_zone"] = (
+        dfx["heart_rate_zone"]
+        .astype(str)
+        .str.strip()
+        .str.lower()
+        .replace({"nan": "unknown", "none": "unknown", "": "unknown"})
+    )
+
+    if metric == "days":
+        s = dfx.groupby("heart_rate_zone").size()
+    else:
+        mins = pd.to_numeric(dfx.get("exercise_minutes"), errors="coerce").fillna(0)
+        s = mins.groupby(dfx["heart_rate_zone"]).sum()
+
+    # Stable order + include missing zones as 0
+    s = s.reindex(HR_ZONE_ORDER, fill_value=0)
+
+    out = s.reset_index()
+    out.columns = ["heart_rate_zone", "value"]
+    out["heart_rate_zone"] = pd.Categorical(out["heart_rate_zone"], categories=HR_ZONE_ORDER, ordered=True)
     return out
