@@ -310,17 +310,78 @@ def main() -> None:
     st.subheader("Heart Rate Zone Breakdown")
 
     if {"did_exercise", "heart_rate_zone"}.issubset(filtered.columns) and len(filtered) > 0:
+        hr_granularity = st.radio(
+            "Granularity",
+            options=["Daily", "Weekly"],
+            horizontal=True,
+            key="hr_zone_granularity",
+        )
+
         metric_label = st.radio(
             "Measure",
             options=["Exercise Days", "Exercise Minutes"],
             horizontal=True,
+            key="hr_zone_metric",
         )
         metric = "days" if metric_label == "Exercise Days" else "minutes"
 
-        zone_df = hr_zone_breakdown(filtered, metric=metric)
+        if hr_granularity == "Daily":
+            zone_df = hr_zone_breakdown(filtered, metric=metric)
+            fig_zone = px.bar(zone_df, x="heart_rate_zone", y="value")
+            st.plotly_chart(fig_zone, use_container_width=True)
 
-        fig_zone = px.bar(zone_df, x="heart_rate_zone", y="value")
-        st.plotly_chart(fig_zone, use_container_width=True)
+        else:
+            if "date" not in filtered.columns or filtered["date"].isna().all():
+                st.info("Weekly HR zone view needs a valid `date` column.")
+            else:
+                base = filtered.dropna(subset=["date"]).copy()
+
+                # Keep only exercised rows (match helper intent)
+                did = base["did_exercise"].astype(str).str.strip().str.lower()
+                base = base[did == "yes"]
+
+                # Normalize zones (same normalization as helper)
+                base["heart_rate_zone"] = (
+                    base["heart_rate_zone"]
+                    .astype(str)
+                    .str.strip()
+                    .str.lower()
+                    .replace({"nan": "unknown", "none": "unknown", "": "unknown"})
+                )
+
+                base = base.set_index("date")
+
+                if metric == "days":
+                    weekly_zone = (
+                        base.groupby([pd.Grouper(freq="W"), "heart_rate_zone"])
+                        .size()
+                        .reset_index(name="value")
+                    )
+                else:
+                    base["exercise_minutes"] = pd.to_numeric(
+                        base.get("exercise_minutes"), errors="coerce"
+                    ).fillna(0)
+                    weekly_zone = (
+                        base.groupby([pd.Grouper(freq="W"), "heart_rate_zone"])["exercise_minutes"]
+                        .sum()
+                        .reset_index(name="value")
+                    )
+
+                # Ensure stable zone ordering in legend + display
+                weekly_zone["heart_rate_zone"] = pd.Categorical(
+                    weekly_zone["heart_rate_zone"],
+                    categories=["light", "moderate", "intense", "peak", "unknown"],
+                    ordered=True,
+                )
+
+                fig_zone = px.bar(
+                    weekly_zone,
+                    x="date",
+                    y="value",
+                    color="heart_rate_zone",
+                    barmode="stack",
+                )
+                st.plotly_chart(fig_zone, use_container_width=True)
     else:
         st.info("HR zone chart needs `did_exercise` and `heart_rate_zone` data.")
 
