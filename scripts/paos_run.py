@@ -27,8 +27,11 @@ def main() -> None:
         version=f"paos-run {getattr(paos, '__version__', 'unknown')}",
     )
 
-    # ✅ add ingest stage
-    parser.add_argument("stage", choices=["all", "ingest", "transform", "report"], help="Pipeline stage to run")
+    parser.add_argument(
+        "stage",
+        choices=["all", "ingest", "transform", "report"],
+        help="Pipeline stage to run",
+    )
 
     # Input selection
     parser.add_argument(
@@ -97,7 +100,7 @@ def main() -> None:
 
     enrich_fn = _pick_fn(scoring, ("enrich_daily_log", "enrich", "score_and_enrich", "add_scores"))
 
-    # ✅ NEW: report-only stage (build summary + figures from an existing enriched CSV)
+    # ✅ report-only stage (build summary + figures from an existing enriched CSV)
     if args.stage == "report":
         import pandas as pd
 
@@ -152,16 +155,16 @@ def main() -> None:
         )
         input_label = f"sheets:{sheet_id} ({sheet_range})"
 
-    # ✅ NEW: ingest-only stage exits early after writing ingested CSV
+    # ✅ ingest-only stage exits early after writing ingested CSV
     if args.stage == "ingest":
         df_raw.to_csv(out_path, index=False)
 
         print("PAOS ingest complete")
-        print(f"- Input:  {input_label}")
-        print(f"- Output: {out_path}")
+        print(f"- Input:   {input_label}")
+        print(f"- Output:  {out_path}")
 
         if args.input_type == "sheets" and args.dump_raw:
-            print(f"- Raw:    {args.raw_out}")
+            print(f"- Raw:     {args.raw_out}")
 
         return
 
@@ -169,11 +172,11 @@ def main() -> None:
     df_enriched = enrich_fn(df_raw)
     df_enriched.to_csv(out_path, index=False)
 
-    # ✅ NEW: transform-only stage exits early after writing enriched CSV
+    # ✅ transform-only stage exits early after writing enriched CSV
     if args.stage == "transform":
         print("PAOS transform complete")
-        print(f"- Input:  {input_label}")
-        print(f"- Output: {out_path}")
+        print(f"- Input:   {input_label}")
+        print(f"- Output:  {out_path}")
         return
 
     # --- Summary + figures ---
