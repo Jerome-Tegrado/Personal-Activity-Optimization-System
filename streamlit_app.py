@@ -139,6 +139,37 @@ def main() -> None:
     )
 
     # -----------------------
+    # Summary stats (filtered)
+    # -----------------------
+    st.subheader("Summary stats (filtered)")
+
+    if len(filtered) > 0:
+        c1, c2, c3, c4 = st.columns(4)
+
+        with c1:
+            st.metric("Days", len(filtered))
+
+        with c2:
+            if "steps" in filtered.columns:
+                st.metric("Avg Steps", f"{filtered['steps'].mean():.0f}")
+            else:
+                st.metric("Avg Steps", "N/A")
+
+        with c3:
+            if "activity_level" in filtered.columns:
+                st.metric("Avg Activity", f"{filtered['activity_level'].mean():.1f}")
+            else:
+                st.metric("Avg Activity", "N/A")
+
+        with c4:
+            if "energy_focus" in filtered.columns:
+                st.metric("Avg Energy", f"{filtered['energy_focus'].mean():.2f}")
+            else:
+                st.metric("Avg Energy", "N/A")
+    else:
+        st.info("No summary stats available for an empty filter.")
+
+    # -----------------------
     # Activity trend (chart)
     # -----------------------
     st.subheader("Activity trend")
