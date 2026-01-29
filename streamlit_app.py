@@ -23,6 +23,16 @@ def _load_cached(path_str: str) -> pd.DataFrame:
     return load_enriched_csv(Path(path_str))
 
 
+def _status_from_activity_level(level: float) -> str:
+    if level <= 25:
+        return "Sedentary"
+    if level <= 50:
+        return "Lightly Active"
+    if level <= 75:
+        return "Active"
+    return "Very Active"
+
+
 def main() -> None:
     st.set_page_config(page_title="PAOS Dashboard", layout="wide")
     st.title("PAOS Dashboard (v2)")
@@ -35,6 +45,7 @@ def main() -> None:
     show_checks = st.sidebar.checkbox("Show data checks", value=True)
     show_preview = st.sidebar.checkbox("Show data preview", value=False)
     trend_granularity = st.sidebar.selectbox("Trend granularity", ["Daily", "Weekly"])
+    status_count_mode = st.sidebar.selectbox("Status counts by", ["Days", "Weeks"])
 
     cfg = DashboardDataConfig()
 
@@ -83,11 +94,10 @@ def main() -> None:
                 "Try generating the enriched file using the transform stage."
             )
 
-        if "date" in df.columns:
-            if df["date"].isna().all() and len(df) > 0:
-                st.warning(
-                    "The `date` column exists, but none of the values could be parsed as valid dates."
-                )
+        if "date" in df.columns and df["date"].isna().all() and len(df) > 0:
+            st.warning(
+                "The `date` column exists, but none of the values could be parsed as valid dates."
+            )
 
     # -----------------------
     # Quick metrics
@@ -230,9 +240,7 @@ def main() -> None:
         if "date" in scatter_df.columns:
             hover_cols = ["date"] + hover_cols
 
-        color_col = (
-            "lifestyle_status" if "lifestyle_status" in scatter_df.columns else None
-        )
+        color_col = "lifestyle_status" if "lifestyle_status" in scatter_df.columns else None
 
         fig2 = px.scatter(
             scatter_df,
@@ -250,14 +258,39 @@ def main() -> None:
     # -----------------------
     st.subheader("Lifestyle status counts")
 
-    if "lifestyle_status" in filtered.columns and len(filtered) > 0:
-        counts = filtered["lifestyle_status"].dropna().value_counts().reset_index()
-        counts.columns = ["lifestyle_status", "days"]
+    if len(filtered) > 0:
+        if (
+            status_count_mode == "Weeks"
+            and "date" in filtered.columns
+            and "activity_level" in filtered.columns
+        ):
+            base = filtered.dropna(subset=["date", "activity_level"]).sort_values("date")
+            weekly2 = (
+                base.set_index("date")["activity_level"]
+                .resample("W")
+                .mean()
+                .reset_index()
+            )
+            weekly2["lifestyle_status"] = weekly2["activity_level"].apply(
+                _status_from_activity_level
+            )
+            counts = weekly2["lifestyle_status"].value_counts().reset_index()
+            counts.columns = ["lifestyle_status", "weeks"]
+            fig3 = px.bar(counts, x="lifestyle_status", y="weeks")
+            st.plotly_chart(fig3, use_container_width=True)
 
-        fig3 = px.bar(counts, x="lifestyle_status", y="days")
-        st.plotly_chart(fig3, use_container_width=True)
+        elif "lifestyle_status" in filtered.columns:
+            counts = filtered["lifestyle_status"].dropna().value_counts().reset_index()
+            counts.columns = ["lifestyle_status", "days"]
+            fig3 = px.bar(counts, x="lifestyle_status", y="days")
+            st.plotly_chart(fig3, use_container_width=True)
+
+        else:
+            st.info(
+                "Status chart needs `lifestyle_status`, or (`date` + `activity_level`) for weekly mode."
+            )
     else:
-        st.info("Status chart needs `lifestyle_status` data.")
+        st.info("Status chart needs data (current filter is empty).")
 
     # -----------------------
     # Preview
