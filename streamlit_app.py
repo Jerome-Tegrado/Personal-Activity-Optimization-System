@@ -15,6 +15,7 @@ from paos.dashboard.data import (
 )
 
 DEFAULT_ENRICHED_CSV = Path("data/processed/daily_log_enriched.csv")
+STATUS_ORDER = ["Sedentary", "Lightly Active", "Active", "Very Active"]
 
 
 @st.cache_data
@@ -276,13 +277,23 @@ def main() -> None:
             )
             counts = weekly2["lifestyle_status"].value_counts().reset_index()
             counts.columns = ["lifestyle_status", "weeks"]
-            fig3 = px.bar(counts, x="lifestyle_status", y="weeks")
+            fig3 = px.bar(
+                counts,
+                x="lifestyle_status",
+                y="weeks",
+                category_orders={"lifestyle_status": STATUS_ORDER},
+            )
             st.plotly_chart(fig3, use_container_width=True)
 
         elif "lifestyle_status" in filtered.columns:
             counts = filtered["lifestyle_status"].dropna().value_counts().reset_index()
             counts.columns = ["lifestyle_status", "days"]
-            fig3 = px.bar(counts, x="lifestyle_status", y="days")
+            fig3 = px.bar(
+                counts,
+                x="lifestyle_status",
+                y="days",
+                category_orders={"lifestyle_status": STATUS_ORDER},
+            )
             st.plotly_chart(fig3, use_container_width=True)
 
         else:
