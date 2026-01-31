@@ -1,7 +1,11 @@
 param(
   [Parameter(Mandatory=$true)]
   [ValidateSet("setup","lint","test","demo","dashboard","weekly")]
-  [string]$Task
+  [string]$Task,
+
+  # Optional override for weekly report anchor date (YYYY-MM-DD).
+  # If not provided, we default to a stable demo date so output is deterministic.
+  [string]$Today
 )
 
 if ($Task -eq "setup") {
@@ -35,10 +39,15 @@ if ($Task -eq "dashboard") {
 }
 
 if ($Task -eq "weekly") {
+  # Default to a deterministic date for demo runs (previous week lines up with sample data)
+  if ([string]::IsNullOrWhiteSpace($Today)) {
+    $Today = "2026-01-20"
+  }
+
   python scripts\paos_weekly_report.py `
     --input-type csv `
     --input data\sample\daily_log.csv `
-    --today 2026-01-20 `
+    --today $Today `
     --out-root reports_demo\weekly `
     --processed-root data\processed\weekly
   exit 0
