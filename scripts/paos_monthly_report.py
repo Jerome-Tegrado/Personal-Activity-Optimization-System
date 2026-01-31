@@ -68,6 +68,12 @@ def _build_paos_transform_cmd(args: argparse.Namespace, paths: MonthlyPaths) -> 
             if args.raw_out:
                 cmd += ["--raw-out", str(args.raw_out)]
 
+    # ✅ passthrough experiments spec (opt-in)
+    exp_spec = getattr(args, "experiments_spec", None)
+    if exp_spec:
+        cmd += ["--experiments-spec", str(exp_spec)]
+
+
     return cmd
 
 
@@ -142,6 +148,14 @@ def main() -> int:
         help="(Sheets only) Output path for raw snapshot (requires --dump-raw).",
     )
 
+    # ✅ NEW: opt-in experiments spec for monthly summary
+    parser.add_argument(
+        "--experiments-spec",
+        type=Path,
+        default=None,
+        help="Path to experiments CSV spec. If omitted, no Experiments section is included.",
+    )
+
     parser.add_argument(
         "--quiet",
         action="store_true",
@@ -188,9 +202,12 @@ def main() -> int:
     if paths.processed_csv.exists():
         df_enriched = pd.read_csv(paths.processed_csv)
         summary_path = paths.out_dir / "summary.md"
-
-        # ✅ FIX #1: correct parameter name (month=)
-        write_monthly_summary(df_enriched, summary_path, month=paths.month_label)
+        write_monthly_summary(
+            df_enriched,
+            summary_path,
+            month=paths.month_label,
+            experiments_spec=args.experiments_spec,
+        )
 
     if not args.quiet:
         print("Monthly report complete")

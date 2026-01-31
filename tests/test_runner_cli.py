@@ -397,3 +397,62 @@ def test_report_stage_can_include_experiments_when_flag_provided(tmp_path: Path)
     assert "## Experiments" in summary
     assert "### e" in summary
 
+def test_monthly_report_script_can_include_experiments_when_flag_provided(tmp_path: Path) -> None:
+    # Minimal CSV data for January 2026
+    input_csv = tmp_path / "daily_log.csv"
+    input_csv.write_text(
+        "date,steps,energy_focus,did_exercise,notes\n"
+        "2026-01-01,8000,3,Yes,\n"
+        "2026-01-02,8200,3,Yes,\n"
+        "2026-01-03,9000,4,Yes,\n"
+        "2026-01-04,9500,4,Yes,\n",
+        encoding="utf-8",
+    )
+
+    # Spec that matches those days (control then treatment)
+    spec_path = tmp_path / "experiments.csv"
+    spec_path.write_text(
+        "\n".join(
+            [
+                "experiment,start_date,end_date,phase,label",
+                "e,2026-01-01,2026-01-02,control,baseline",
+                "e,2026-01-03,2026-01-04,treatment,test",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    out_root = tmp_path / "out"
+    processed_root = tmp_path / "processed"
+
+    cmd = [
+        sys.executable,
+        "scripts/paos_monthly_report.py",
+        "--quiet",
+        "--input-type",
+        "csv",
+        "--input",
+        str(input_csv),
+        "--today",
+        "2026-01-20",
+        "--out-root",
+        str(out_root),
+        "--processed-root",
+        str(processed_root),
+        "--experiments-spec",
+        str(spec_path),
+    ]
+
+    res = subprocess.run(cmd, capture_output=True, text=True)
+    assert res.returncode == 0, f"STDOUT:\n{res.stdout}\nSTDERR:\n{res.stderr}"
+
+    # Month folder naming
+    month_dir = out_root / "2026-01"
+    assert month_dir.exists()
+
+    summary_path = month_dir / "summary.md"
+    assert summary_path.exists()
+
+    text = summary_path.read_text(encoding="utf-8")
+    assert "## Experiments" in text
+    assert "### e" in text
