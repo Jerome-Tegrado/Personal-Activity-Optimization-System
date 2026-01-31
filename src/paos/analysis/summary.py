@@ -3,9 +3,16 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Optional
 
+import numpy as np
 import pandas as pd
 
 from paos.insights.engine import InsightEngineConfig, generate_insights
+
+# Experiment reporting is optional (skip if spec file missing)
+from paos.experiments.assign import assign_experiments_to_days
+from paos.experiments.effects import compute_experiment_effects
+
+DEFAULT_EXPERIMENT_SPEC_PATH = Path("data/sample/experiments.csv")
 
 
 def _prepare_df_with_dates(df: pd.DataFrame) -> pd.DataFrame:
@@ -26,6 +33,121 @@ def _render_insights_md(df: pd.DataFrame) -> list[str]:
     lines: list[str] = []
     for ins in insights:
         lines.append(f"- **{ins.title}:** {ins.message}")
+    return lines
+
+
+def _fmt_num(x: object, decimals: int = 2) -> str:
+    v = pd.to_numeric(x, errors="coerce")
+    if pd.isna(v):
+        return "N/A"
+    return f"{float(v):.{decimals}f}"
+
+
+def _render_experiments_md(
+    week_df: pd.DataFrame,
+    spec_path: Path = DEFAULT_EXPERIMENT_SPEC_PATH,
+    n_boot: int = 500,
+    ci: float = 0.95,
+    seed: int = 42,
+) -> list[str]:
+    """
+    Render experiment effect results into markdown.
+
+    - Uses DEFAULT_EXPERIMENT_SPEC_PATH unless overridden later.
+    - If the spec file doesn't exist, returns [] (silent skip).
+    - Keeps output aggregate-only (no dates, no notes).
+    """
+    if week_df is None or week_df.empty:
+        return []
+
+    if not spec_path.exists():
+        return []
+
+    # Assign experiment/phase/label onto the week slice
+    try:
+        assigned = assign_experiments_to_days(week_df, spec_path, date_col="date")
+    except Exception:
+        # If anything goes wrong with spec parsing/assignment, skip section (non-fatal)
+        return []
+
+    # Only show if at least one day is part of an experiment
+    if "experiment" not in assigned.columns or assigned["experiment"].isna().all():
+        return []
+
+    effects = compute_experiment_effects(
+        assigned,
+        experiment_col="experiment",
+        phase_col="experiment_phase",
+        metrics=("activity_level", "energy_focus"),
+        add_ci=True,
+        n_boot=n_boot,
+        ci=ci,
+        seed=seed,
+    )
+
+    if effects.empty:
+        return [
+            "- Not enough control/treatment coverage this week to estimate experiment effects.",
+        ]
+
+    lines: list[str] = []
+
+    # Group by experiment and render metric rows
+    for exp, g in effects.groupby("experiment", dropna=True):
+        exp_name = str(exp)
+        lines.append(f"### {exp_name}")
+
+        # optional label (if present on assigned days, pick most common)
+        label = None
+        if "experiment_label" in assigned.columns:
+            tmp = assigned.loc[assigned["experiment"] == exp_name, "experiment_label"].dropna()
+            if len(tmp) > 0:
+                # most frequent label for the week
+                label = str(tmp.value_counts().index[0])
+        if label:
+            lines.append(f"- **Label:** {label}")
+
+        for _, r in g.iterrows():
+            metric = str(r.get("metric", ""))
+            if metric == "activity_level":
+                metric_name = "Activity Level"
+            elif metric == "energy_focus":
+                metric_name = "Energy/Focus"
+            else:
+                metric_name = metric
+
+            delta = r.get("delta")
+            control_mean = r.get("control_mean")
+            treatment_mean = r.get("treatment_mean")
+            n_control = int(r.get("n_control", 0) or 0)
+            n_treat = int(r.get("n_treatment", 0) or 0)
+
+            # CI (optional)
+            ci_low = r.get("delta_ci_low")
+            ci_high = r.get("delta_ci_high")
+            boot_used = int(r.get("n_boot", 0) or 0)
+
+            ci_txt = ""
+            if boot_used > 0 and not pd.isna(ci_low) and not pd.isna(ci_high):
+                ci_pct = int(round(ci * 100))
+                ci_txt = f" (CI{ci_pct}% [{_fmt_num(ci_low)}, {_fmt_num(ci_high)}])"
+
+            # Prefix + sign formatting for delta (keep 2 decimals)
+            delta_num = pd.to_numeric(delta, errors="coerce")
+            delta_txt = "N/A" if pd.isna(delta_num) else f"{float(delta_num):+.2f}"
+
+            lines.append(
+                f"- **{metric_name}:** Δ {delta_txt}{ci_txt} "
+                f"(control {_fmt_num(control_mean)}; treatment {_fmt_num(treatment_mean)}; "
+                f"n={n_control}/{n_treat})"
+            )
+
+        lines.append("")
+
+    # remove trailing blank line if present
+    while lines and lines[-1] == "":
+        lines.pop()
+
     return lines
 
 
@@ -97,6 +219,13 @@ def write_weekly_summary(
     md.append("## Insights")
     md.extend(_render_insights_md(week))
     md.append("")
+
+    # v3 Section 4 Step 4: experiment results (optional; skip if spec missing)
+    exp_lines = _render_experiments_md(week)
+    if exp_lines:
+        md.append("## Experiments")
+        md.extend(exp_lines)
+        md.append("")
 
     out_path.write_text("\n".join(md) + "\n", encoding="utf-8")
     return out_path
