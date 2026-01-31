@@ -3,16 +3,13 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Optional
 
-import numpy as np
 import pandas as pd
 
 from paos.insights.engine import InsightEngineConfig, generate_insights
 
-# Experiment reporting is optional (skip if spec file missing)
+# Experiment reporting is optional (only enabled if experiments_spec is provided)
 from paos.experiments.assign import assign_experiments_to_days
 from paos.experiments.effects import compute_experiment_effects
-
-DEFAULT_EXPERIMENT_SPEC_PATH = Path("data/sample/experiments.csv")
 
 
 def _prepare_df_with_dates(df: pd.DataFrame) -> pd.DataFrame:
@@ -45,7 +42,7 @@ def _fmt_num(x: object, decimals: int = 2) -> str:
 
 def _render_experiments_md(
     week_df: pd.DataFrame,
-    spec_path: Path = DEFAULT_EXPERIMENT_SPEC_PATH,
+    spec_path: str | Path | None,
     n_boot: int = 500,
     ci: float = 0.95,
     seed: int = 42,
@@ -53,13 +50,18 @@ def _render_experiments_md(
     """
     Render experiment effect results into markdown.
 
-    - Uses DEFAULT_EXPERIMENT_SPEC_PATH unless overridden later.
-    - If the spec file doesn't exist, returns [] (silent skip).
+    Behavior:
+    - If spec_path is None -> experiments disabled -> return [].
+    - If spec file doesn't exist -> return [] (silent skip).
     - Keeps output aggregate-only (no dates, no notes).
     """
     if week_df is None or week_df.empty:
         return []
 
+    if spec_path is None:
+        return []
+
+    spec_path = Path(spec_path)
     if not spec_path.exists():
         return []
 
@@ -87,7 +89,7 @@ def _render_experiments_md(
 
     if effects.empty:
         return [
-            "- Not enough control/treatment coverage this week to estimate experiment effects.",
+            "- Not enough control/treatment coverage to estimate experiment effects.",
         ]
 
     lines: list[str] = []
@@ -102,7 +104,6 @@ def _render_experiments_md(
         if "experiment_label" in assigned.columns:
             tmp = assigned.loc[assigned["experiment"] == exp_name, "experiment_label"].dropna()
             if len(tmp) > 0:
-                # most frequent label for the week
                 label = str(tmp.value_counts().index[0])
         if label:
             lines.append(f"- **Label:** {label}")
@@ -132,7 +133,6 @@ def _render_experiments_md(
                 ci_pct = int(round(ci * 100))
                 ci_txt = f" (CI{ci_pct}% [{_fmt_num(ci_low)}, {_fmt_num(ci_high)}])"
 
-            # Prefix + sign formatting for delta (keep 2 decimals)
             delta_num = pd.to_numeric(delta, errors="coerce")
             delta_txt = "N/A" if pd.isna(delta_num) else f"{float(delta_num):+.2f}"
 
@@ -144,7 +144,6 @@ def _render_experiments_md(
 
         lines.append("")
 
-    # remove trailing blank line if present
     while lines and lines[-1] == "":
         lines.pop()
 
@@ -152,7 +151,10 @@ def _render_experiments_md(
 
 
 def write_weekly_summary(
-    df: pd.DataFrame, out_path: str | Path, week_end: Optional[str] = None
+    df: pd.DataFrame,
+    out_path: str | Path,
+    week_end: Optional[str] = None,
+    experiments_spec: str | Path | None = None,
 ) -> Path:
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -220,8 +222,8 @@ def write_weekly_summary(
     md.extend(_render_insights_md(week))
     md.append("")
 
-    # v3 Section 4 Step 4: experiment results (optional; skip if spec missing)
-    exp_lines = _render_experiments_md(week)
+    # v3 Section 4 Step 5: experiment results are opt-in via experiments_spec
+    exp_lines = _render_experiments_md(week, spec_path=experiments_spec)
     if exp_lines:
         md.append("## Experiments")
         md.extend(exp_lines)

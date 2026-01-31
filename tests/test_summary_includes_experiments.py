@@ -5,14 +5,12 @@ import pandas as pd
 from paos.analysis.summary import write_weekly_summary
 
 
-def test_weekly_summary_includes_experiments_section_when_spec_exists(tmp_path: Path, monkeypatch):
-    # Make the default experiments spec path exist relative to cwd:
-    # data/sample/experiments.csv
-    monkeypatch.chdir(tmp_path)
+def test_weekly_summary_includes_experiments_section_when_spec_exists(tmp_path: Path):
     spec_dir = tmp_path / "data" / "sample"
     spec_dir.mkdir(parents=True, exist_ok=True)
+    spec_path = spec_dir / "experiments.csv"
 
-    (spec_dir / "experiments.csv").write_text(
+    spec_path.write_text(
         "\n".join(
             [
                 "experiment,start_date,end_date,phase,label",
@@ -36,20 +34,16 @@ def test_weekly_summary_includes_experiments_section_when_spec_exists(tmp_path: 
     )
 
     out_path = tmp_path / "summary.md"
-    write_weekly_summary(df, out_path, week_end="2026-01-20")
+    write_weekly_summary(df, out_path, week_end="2026-01-20", experiments_spec=spec_path)
 
     text = out_path.read_text(encoding="utf-8")
-
     assert "## Experiments" in text
     assert "### lunch-walk" in text
     assert "Activity Level" in text
     assert "Energy/Focus" in text
 
 
-def test_weekly_summary_skips_experiments_section_when_spec_missing(tmp_path: Path, monkeypatch):
-    # Critical: change cwd so we don't accidentally pick up the repo's real data/sample/experiments.csv
-    monkeypatch.chdir(tmp_path)
-
+def test_weekly_summary_skips_experiments_section_when_spec_not_provided(tmp_path: Path):
     df = pd.DataFrame(
         {
             "date": pd.date_range("2026-01-01", periods=7, freq="D").astype(str),
@@ -61,7 +55,7 @@ def test_weekly_summary_skips_experiments_section_when_spec_missing(tmp_path: Pa
     )
 
     out_path = tmp_path / "summary.md"
-    write_weekly_summary(df, out_path, week_end="2026-01-07")
+    write_weekly_summary(df, out_path, week_end="2026-01-07", experiments_spec=None)
 
     text = out_path.read_text(encoding="utf-8")
     assert "## Experiments" not in text
