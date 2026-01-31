@@ -42,8 +42,18 @@ def test_weekly_summary_includes_experiments_section_when_spec_exists(tmp_path: 
     assert "Activity Level" in text
     assert "Energy/Focus" in text
 
-    # New: verdict formatting is present
+    # Verdict formatting marker is present
     assert "— **" in text
+
+    # Stronger: verdict text must be one of expected labels
+    verdict_phrases = [
+        "likely improvement",
+        "likely worse",
+        "possible improvement",
+        "possible worse",
+        "unclear",
+    ]
+    assert any(v in text.lower() for v in verdict_phrases)
 
 
 def test_weekly_summary_skips_experiments_section_when_spec_not_provided(tmp_path: Path):

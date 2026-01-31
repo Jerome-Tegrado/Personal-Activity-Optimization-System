@@ -37,6 +37,18 @@ def test_monthly_summary_includes_experiments_when_spec_provided(tmp_path: Path)
     assert "## Experiments" in text
     assert "### e" in text
 
+    # Verdict marker should appear for at least one metric line
+    assert "— **" in text
+
+    verdict_phrases = [
+        "likely improvement",
+        "likely worse",
+        "possible improvement",
+        "possible worse",
+        "unclear",
+    ]
+    assert any(v in text.lower() for v in verdict_phrases)
+
 
 def test_monthly_summary_skips_experiments_when_not_provided(tmp_path: Path):
     df = pd.DataFrame(
