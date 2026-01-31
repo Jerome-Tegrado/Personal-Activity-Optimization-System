@@ -6,6 +6,7 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
+import paos
 from paos.dashboard.data import (
     DashboardDataConfig,
     coerce_date_column,
@@ -244,6 +245,20 @@ def main() -> None:
     # -----------------------
     if "date" in df.columns:
         df = coerce_date_column(df, col="date")
+
+    # -----------------------
+    # Data info banner (version + date range)
+    # -----------------------
+    version = getattr(paos, "__version__", "unknown")
+    rows = len(df)
+
+    date_info = "No valid dates"
+    if "date" in df.columns and df["date"].notna().any():
+        min_date = df["date"].min().date()
+        max_date = df["date"].max().date()
+        date_info = f"{min_date} → {max_date}"
+
+    st.caption(f"PAOS v{version} • Rows: {rows} • Date range: {date_info}")
 
     # -----------------------
     # Data checks (friendly)
