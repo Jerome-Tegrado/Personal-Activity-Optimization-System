@@ -79,6 +79,10 @@ def recommend_series(df: pd.DataFrame) -> pd.Series:
       Rule #5: weekend recovery (Sat/Sun + high activity + low energy) => weekend-specific recovery nudge
       Rule #6: 3+ consecutive sedentary days => stronger escalation nudge
       Rule #7: bounce-back (consecutive day + >= +20 activity) => praise nudge
+
+    Note:
+      - Rule precedence: if it's the 3rd sedentary day, we only append the "3-day" message
+        (not both the 2-day + 3-day messages).
     """
     if "activity_level" not in df.columns:
         raise ValueError("recommend_series requires an 'activity_level' column")
@@ -125,24 +129,27 @@ def recommend_series(df: pd.DataFrame) -> pd.Series:
     )
     recs = recs.where(~downtrend_today, recs + downtrend_nudge)
 
-    # ----------------------------------------
-    # Rule #3: consecutive sedentary day streak
-    # ----------------------------------------
     sedentary = a <= SEDENTARY_MAX
-    sedentary_streak_2 = sedentary & sedentary.shift(1) & consec_1
-    streak_2_nudge = (
-        " Two sedentary days in a row — go for a tiny win today (10–15 min walk) to break the streak."
-    )
-    recs = recs.where(~sedentary_streak_2, recs + streak_2_nudge)
 
     # ----------------------------------------
     # Rule #6: 3-day sedentary streak escalation
+    # (apply first so it takes precedence)
     # ----------------------------------------
     sedentary_streak_3 = sedentary & sedentary.shift(1) & sedentary.shift(2) & consec_2
     streak_3_nudge = (
         " Three sedentary days in a row — make it easy: schedule a 20–30 min walk and remove friction (shoes ready, calendar block)."
     )
     recs = recs.where(~sedentary_streak_3, recs + streak_3_nudge)
+
+    # ----------------------------------------
+    # Rule #3: consecutive sedentary 2-day streak
+    # (but NOT when it’s already day-3)
+    # ----------------------------------------
+    sedentary_streak_2 = sedentary & sedentary.shift(1) & consec_1 & ~sedentary_streak_3
+    streak_2_nudge = (
+        " Two sedentary days in a row — go for a tiny win today (10–15 min walk) to break the streak."
+    )
+    recs = recs.where(~sedentary_streak_2, recs + streak_2_nudge)
 
     # -------------------------
     # Rule #4: weekday dip nudge
@@ -174,7 +181,9 @@ def recommend_series(df: pd.DataFrame) -> pd.Series:
     # Rule #7: bounce-back praise
     # -------------------------
     bounce_back = consec_1 & ((a - a.shift(1)) >= BOUNCE_BACK_DELTA)
-    bounce_msg = " Nice bounce-back — great job increasing activity. Keep the streak going with something sustainable tomorrow."
+    bounce_msg = (
+        " Nice bounce-back — great job increasing activity. Keep the streak going with something sustainable tomorrow."
+    )
     recs = recs.where(~bounce_back, recs + bounce_msg)
 
     return recs

@@ -74,6 +74,20 @@ def test_recommend_series_escalates_on_three_sedentary_days() -> None:
     assert "three sedentary days" not in recs.iloc[1].lower()
 
 
+def test_three_day_sedentary_escalation_does_not_also_add_two_day_message() -> None:
+    df = pd.DataFrame(
+        {
+            "date": ["2026-01-06", "2026-01-07", "2026-01-08"],  # consecutive days
+            "activity_level": [20, 15, 10],  # all sedentary
+            "energy_focus": [3, 3, 3],
+        }
+    )
+    recs = recommend_series(df)
+    day3 = recs.iloc[2].lower()
+    assert "three sedentary days" in day3
+    assert "two sedentary days" not in day3
+
+
 def test_recommend_series_weekday_dip_nudge_triggers_on_weekday_sedentary() -> None:
     # 2026-01-05 is a Monday (weekday)
     df = pd.DataFrame(
