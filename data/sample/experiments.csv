@@ -1,0 +1,5 @@
+experiment,start_date,end_date,phase,label
+lunch-walk,2026-01-01,2026-01-14,control,baseline
+lunch-walk,2026-01-15,2026-01-31,treatment,walk-after-lunch
+strength-2x,2026-02-01,2026-02-14,control,baseline
+strength-2x,2026-02-15,2026-02-28,treatment,2-sessions-per-week
