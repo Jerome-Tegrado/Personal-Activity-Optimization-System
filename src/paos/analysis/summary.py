@@ -40,12 +40,52 @@ def _fmt_num(x: object, decimals: int = 2) -> str:
     return f"{float(v):.{decimals}f}"
 
 
+def _verdict_from_delta_and_ci(
+    delta: object,
+    ci_low: object,
+    ci_high: object,
+    boot_used: int,
+    small_threshold: float,
+) -> str:
+    """
+    Simple interpretation helper:
+    - If bootstrap CI exists:
+        * CI fully > 0  => likely improvement
+        * CI fully < 0  => likely worse
+        * otherwise     => unclear
+    - If no CI:
+        * abs(delta) < threshold => unclear
+        * delta > 0 => possible improvement
+        * delta < 0 => possible worse
+    """
+    d = pd.to_numeric(delta, errors="coerce")
+    lo = pd.to_numeric(ci_low, errors="coerce")
+    hi = pd.to_numeric(ci_high, errors="coerce")
+
+    if boot_used > 0 and pd.notna(lo) and pd.notna(hi):
+        if float(lo) > 0:
+            return "likely improvement"
+        if float(hi) < 0:
+            return "likely worse"
+        return "unclear"
+
+    if pd.isna(d):
+        return "unclear"
+
+    if abs(float(d)) < float(small_threshold):
+        return "unclear"
+
+    return "possible improvement" if float(d) > 0 else "possible worse"
+
+
 def _render_experiments_md(
     df_slice: pd.DataFrame,
     spec_path: str | Path | None,
     n_boot: int = 500,
     ci: float = 0.95,
     seed: int = 42,
+    small_threshold_activity: float = 3.0,
+    small_threshold_energy: float = 0.3,
 ) -> list[str]:
     """
     Render experiment effect results into markdown for a given df slice
@@ -113,10 +153,13 @@ def _render_experiments_md(
             metric = str(r.get("metric", ""))
             if metric == "activity_level":
                 metric_name = "Activity Level"
+                small_thr = small_threshold_activity
             elif metric == "energy_focus":
                 metric_name = "Energy/Focus"
+                small_thr = small_threshold_energy
             else:
                 metric_name = metric
+                small_thr = 0.0
 
             delta = r.get("delta")
             control_mean = r.get("control_mean")
@@ -137,10 +180,17 @@ def _render_experiments_md(
             delta_num = pd.to_numeric(delta, errors="coerce")
             delta_txt = "N/A" if pd.isna(delta_num) else f"{float(delta_num):+.2f}"
 
+            # low-sample warning (CI not reliable / may not compute)
+            warn = ""
+            if n_control < 2 or n_treat < 2:
+                warn = " ⚠️ low sample"
+
+            verdict = _verdict_from_delta_and_ci(delta, ci_low, ci_high, boot_used, small_thr)
+
             lines.append(
                 f"- **{metric_name}:** Δ {delta_txt}{ci_txt} "
                 f"(control {_fmt_num(control_mean)}; treatment {_fmt_num(treatment_mean)}; "
-                f"n={n_control}/{n_treat})"
+                f"n={n_control}/{n_treat}) — **{verdict}**{warn}"
             )
 
         lines.append("")
