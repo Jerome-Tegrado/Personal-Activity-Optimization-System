@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import pandas as pd
 
+from paos.ingest import apply_optional_hr_columns
+
 
 def ingest_csv(path: str) -> pd.DataFrame:
     df = pd.read_csv(path)
@@ -21,6 +23,9 @@ def ingest_csv(path: str) -> pd.DataFrame:
 
     df["exercise_minutes"] = pd.to_numeric(df["exercise_minutes"], errors="coerce")
     df["heart_rate_zone"] = df["heart_rate_zone"].astype("string").str.strip().str.lower()
+
+    # v3 Section 2 Step 1: optional HR inputs (no-op if absent)
+    df = apply_optional_hr_columns(df)
 
     # Keep the latest row for each date (based on file order)
     df = df.dropna(subset=["date"]).drop_duplicates(subset=["date"], keep="last")

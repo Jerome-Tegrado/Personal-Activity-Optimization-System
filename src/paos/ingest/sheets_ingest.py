@@ -12,6 +12,8 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 
+from paos.ingest import apply_optional_hr_columns
+
 SCOPES: List[str] = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
 
 
@@ -90,6 +92,12 @@ def read_daily_log_from_sheets(
         "Notes": "notes",
         # If you later add "Start Time", include it here
         "Start Time": "start_time",
+        # (Optional) If you later add HR inputs to the form/sheet, map them here too
+        "Avg HR BPM": "avg_hr_bpm",
+        "Minutes Light": "minutes_light",
+        "Minutes Moderate": "minutes_moderate",
+        "Minutes Intense": "minutes_intense",
+        "Minutes Peak": "minutes_peak",
     }
     df = df.rename(columns=rename_map)
 
@@ -142,6 +150,9 @@ def read_daily_log_from_sheets(
 
         df["heart_rate_zone"] = z.map(_map_zone)
         df.loc[df["heart_rate_zone"] == "", "heart_rate_zone"] = pd.NA
+
+    # v3 Section 2 Step 1: optional HR inputs (no-op if absent)
+    df = apply_optional_hr_columns(df)
 
     # --- Dedupe: keep latest submission per date ---
     if "date" in df.columns and "timestamp" in df.columns:
