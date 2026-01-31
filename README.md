@@ -1,63 +1,406 @@
 # Personal Activity Optimization System (PAOS)
 ![tests](https://github.com/Jerome-Tegrado/Personal-Activity-Optimization-System/actions/workflows/tests.yml/badge.svg)
 
-PAOS is **my personal analytics system** for turning my daily activity logs into decisions I can act on.
+PAOS is **my personal analytics system** for turning daily activity logs into decisions I can act on.
 
-I track **steps + exercise**, compute a **0–100 Activity Level**, classify my **Lifestyle Status**, log my **Energy/Focus (1–5)**, generate **daily recommendations**, and produce **charts + weekly write-ups** I can learn from and also showcase on GitHub.
+It ingests daily logs (CSV or Google Sheets), cleans them, computes an **Activity Level (0–100)**, classifies **Lifestyle Status**, generates **daily recommendations**, produces **interactive + static charts**, and writes **weekly/monthly summaries** I can learn from (and showcase publicly using synthetic data).
 
-This is both:
-- a real system I’ll use to improve my routines, and
-- a portfolio project that proves I can build a complete analytics workflow end-to-end.
+> **Privacy-first:** My real personal data stays local (gitignored). This repo ships with **synthetic sample data** that’s safe to commit.
 
 ---
 
-## My story (why I built this)
+## What PAOS does
 
-I wanted a single place where I can answer questions like:
-- “Am I actually becoming more active over time?”
-- “Do higher-activity days match higher focus days?”
-- “What small changes reliably push me from ‘Lightly Active’ to ‘Active’?”
+**Inputs (daily):**
+- `date` (required)
+- `steps` (required)
+- `energy_focus` (1–5, required)
+- `did_exercise` (Yes/No, required)
+- optional exercise details (type/minutes/zone)
+- optional notes (kept private by default)
 
-So I built PAOS to demonstrate a full analytics pipeline:
+**Outputs:**
+- `step_points` (0–50)
+- `exercise_points` (0–50)
+- `activity_level` (0–100)
+- `lifestyle_status` (Sedentary → Very Active)
+- `recommendation` (rule-based, explainable)
+- `summary.md` (weekly or monthly)
+- charts (Plotly HTML + Matplotlib PNG)
 
-**data collection → cleaning → feature engineering → analysis → visualization → reporting → iteration**
-
-…and to make it easy for me to run weekly experiments (“lunch walks”, “2 strength sessions/week”, etc.) and measure outcomes.
+**Optional “v2/v3” features already in this repo:**
+- **Google Sheets ingestion** via official API + token caching
+- **Weekly + Monthly report wrappers** that stamp outputs into date-based folders
+- **Benchmarks (opt-in)**: compare your stats to distribution cutpoints (p25/p50/p75/p90)
+- **Experiments (opt-in)**: tag date ranges as control/treatment and compute simple effects
+- **Energy prediction (optional)**: train a model and write predictions into a new CSV
 
 ---
 
-## Demo (60 seconds)
+## Quick demo (safe public data)
 
-This runs the full pipeline on **synthetic sample data** (safe to commit) and generates charts + a weekly summary.
+Runs the full pipeline on the synthetic sample CSV and writes outputs to `reports_demo/`.
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
+pip install -e .
 
-# Generate public demo outputs into reports_demo/
+# full pipeline: ingest -> transform -> report
 python scripts/paos_run.py all --input-type csv --input data/sample/daily_log.csv --out reports_demo
 
+# view outputs
+cat reports_demo/summary.md
 ls reports_demo/figures/interactive/
 ls reports_demo/figures/static/
-cat reports_demo/summary.md
 ````
 
-**What I generate (in the output folder):**
+Generated (when figures are enabled):
 
-* `figures/interactive/activity_trend.html`
-* `figures/interactive/status_counts.html`
-* `figures/interactive/activity_vs_energy.html`
-* `figures/static/*.png`
-* `summary.md`
+* `reports_demo/summary.md`
+* `reports_demo/figures/interactive/activity_trend.html`
+* `reports_demo/figures/interactive/status_counts.html`
+* `reports_demo/figures/interactive/activity_vs_energy.html`
+* `reports_demo/figures/static/*.png`
 
-> My real personal data stays local in `data/raw/` and is never committed.
+> Note: this repo includes `reports_demo/summary.md` and a `.gitkeep`. Figures are generated locally.
 
 ---
 
-## Developer commands (PowerShell)
+## CLI: PAOS runner stages (`scripts/paos_run.py`)
 
-If you're on Windows/PowerShell, you can use the helper script:
+The runner is stage-based:
+
+```bash
+python scripts/paos_run.py <stage> [options]
+```
+
+### Stages
+
+* `all` — ingest → transform → summary + figures
+* `ingest` — clean + normalize only (writes to `--processed`)
+* `transform` — score/enrich only (writes to `--processed`)
+* `report` — build summary + figures from an existing enriched CSV (`--processed`)
+* `train-model` — (optional) train an Energy/Focus prediction model
+* `predict-energy` — (optional) add predictions into a new CSV
+
+### Common options
+
+* `--input-type {csv,sheets}` (default: `csv`)
+* `--input <path>` (CSV only; default is the sample file)
+* `--processed <path>` (default: `data/processed/daily_log_enriched.csv`)
+* `--out <dir>` (default: `reports`)
+* `--no-figures` (skip Plotly/Matplotlib exports for speed / CI stability)
+
+### Example: ingest only
+
+```bash
+python scripts/paos_run.py ingest \
+  --input-type csv \
+  --input data/sample/daily_log.csv \
+  --processed data/processed/daily_log_ingested.csv
+```
+
+### Example: transform only
+
+```bash
+python scripts/paos_run.py transform \
+  --input-type csv \
+  --input data/sample/daily_log.csv \
+  --processed data/processed/daily_log_enriched.csv
+```
+
+### Example: report only (from an existing enriched CSV)
+
+```bash
+python scripts/paos_run.py report \
+  --processed data/processed/daily_log_enriched.csv \
+  --out reports_demo
+```
+
+---
+
+## Weekly + Monthly reports (stamped folders)
+
+These wrapper scripts run the PAOS runner and automatically write outputs into:
+
+* `reports/weekly/YYYY-Www/`
+* `reports/monthly/YYYY-MM/`
+  …and processed CSVs into matching folders under `data/processed/...`.
+
+### Weekly
+
+```bash
+python scripts/paos_weekly_report.py \
+  --input-type csv \
+  --input data/sample/daily_log.csv \
+  --out-root reports_demo/weekly \
+  --processed-root data/processed/weekly
+```
+
+### Monthly
+
+```bash
+python scripts/paos_monthly_report.py \
+  --input-type csv \
+  --input data/sample/daily_log.csv \
+  --out-root reports_demo/monthly \
+  --processed-root data/processed/monthly
+```
+
+---
+
+## Dashboard (Streamlit)
+
+`streamlit_app.py` loads an enriched CSV and provides interactive exploration.
+
+1. Generate an enriched CSV:
+
+```bash
+python scripts/paos_run.py transform \
+  --input-type csv \
+  --input data/sample/daily_log.csv \
+  --processed data/processed/daily_log_enriched.csv
+```
+
+2. Run Streamlit:
+
+```bash
+python -m streamlit run streamlit_app.py
+```
+
+---
+
+## Google Sheets ingestion (official API)
+
+PAOS supports pulling from a Google Sheet (e.g., Google Forms responses).
+
+### Environment defaults
+
+Create a local `.env` (gitignored). Use `.env.example` as a template:
+
+```bash
+PAOS_SHEETS_ID=your_sheet_id_here
+PAOS_SHEETS_RANGE=Form Responses 1!A1:J
+```
+
+Then run:
+
+```bash
+python scripts/paos_run.py all --input-type sheets --out reports
+```
+
+### OAuth files (local only)
+
+Sheets ingestion expects these local files (gitignored):
+
+* `secrets/credentials.json`
+* `secrets/token.json` (created on first auth)
+
+### Debug: dump a raw Sheets snapshot
+
+```bash
+python scripts/paos_run.py all \
+  --input-type sheets \
+  --dump-raw \
+  --raw-out data/processed/sheets_raw.csv \
+  --out reports
+```
+
+---
+
+## Data model
+
+### Required columns (every day)
+
+| Column         |   Type | Required | Notes                         |
+| -------------- | -----: | :------: | ----------------------------- |
+| `date`         |   date |     ✅    | primary key (one row per day) |
+| `steps`        |    int |     ✅    | daily steps                   |
+| `energy_focus` |    int |     ✅    | 1–5 scale                     |
+| `did_exercise` | Yes/No |     ✅    | controls exercise scoring     |
+
+### Optional exercise columns (only if you exercised)
+
+| Column             | Type | Required | Notes                               |
+| ------------------ | ---: | :------: | ----------------------------------- |
+| `exercise_type`    |  str |     ❌    | cardio/strength/mobility/sports     |
+| `exercise_minutes` |  int |     ❌    | duration in minutes                 |
+| `heart_rate_zone`  |  str |     ❌    | light/moderate/intense/peak/unknown |
+
+### Optional notes (private)
+
+| Column  | Type | Required | Notes                                               |
+| ------- | ---: | :------: | --------------------------------------------------- |
+| `notes` |  str |     ❌    | optional context; avoid sensitive info if exporting |
+
+### Optional HR columns (supported)
+
+If you have tracker data, PAOS can infer a missing `heart_rate_zone` when `did_exercise` is true.
+
+Supported optional columns (any of these may appear):
+
+* `avg_hr_bpm` (also accepts common variants like `avg_hr`, `average_hr`, etc.)
+* `minutes_light`, `minutes_moderate`, `minutes_intense`, `minutes_peak` (also accepts `mins_light`, etc.)
+
+> PAOS will **not overwrite** an existing `heart_rate_zone`. It only fills missing/blank zones when it has enough signal.
+
+### Example CSV (mixed days)
+
+```csv
+date,steps,energy_focus,did_exercise,exercise_type,exercise_minutes,heart_rate_zone,notes
+2026-01-13,8200,4,Yes,cardio,30,moderate,"Morning jog"
+2026-01-14,6500,3,No,,,,"Normal workday"
+2026-01-15,10500,5,Yes,strength,45,intense,"Gym session"
+2026-01-16,7500,3,No,,,,"Rest day"
+```
+
+---
+
+## Scoring logic (explainable by design)
+
+### Step component (0–50)
+
+|       Steps | Points |
+| ----------: | -----: |
+|     0–4,999 |     10 |
+| 5,000–6,999 |     25 |
+| 7,000–9,999 |     35 |
+|     10,000+ |     50 |
+
+### Exercise component (0–50)
+
+Computed only if `did_exercise` is truthy. Otherwise: `exercise_points = 0`.
+
+**Duration points**
+
+* 0–19 min → 10
+* 20–39 min → 25
+* 40–60 min → 35
+* 61+ min → 45
+
+**Heart rate multipliers**
+
+* light → 0.5×
+* moderate → 1.0×
+* intense → 1.5×
+* peak → 2.0×
+* unknown → 1.0×
+
+**Formula**
+
+```text
+exercise_points = min(50, int(duration_points * multiplier))
+activity_level = step_points + exercise_points
+```
+
+### Lifestyle Status
+
+| Activity Level | Status         |
+| -------------: | -------------- |
+|           0–25 | Sedentary      |
+|          26–50 | Lightly Active |
+|          51–75 | Active         |
+|         76–100 | Very Active    |
+
+---
+
+## Recommendations (rule-based)
+
+* **Sedentary (0–25):** Add a 20–30 min walk.
+* **Lightly Active (26–50):** Add a moderate session to reach Active.
+* **Active (51–75):** Maintain; add variety (strength/mobility).
+* **Very Active (76–100):** Great work; prioritize recovery.
+
+---
+
+## Insights in summaries (privacy-safe)
+
+Weekly/monthly summaries include:
+
+* overview metrics (days logged, averages, status counts)
+* Activity ↔ Energy correlation (when valid)
+* rule-based insights generated from aggregate patterns
+
+PAOS intentionally keeps this explainable and avoids dumping sensitive raw text.
+
+---
+
+## Benchmarks (optional, public-safe)
+
+You can compare your stats to benchmark distributions using a simple CSV spec.
+
+* Template: `data/benchmarks/benchmarks_template.csv`
+* Sample: `data/sample/benchmarks.csv`
+
+Run with:
+
+```bash
+python scripts/paos_run.py all \
+  --input-type csv \
+  --input data/sample/daily_log.csv \
+  --benchmarks-spec data/sample/benchmarks.csv \
+  --benchmark-group adult \
+  --benchmark-metrics steps,activity_level \
+  --out reports_demo
+```
+
+---
+
+## Experiments (optional)
+
+You can label date ranges as control/treatment to evaluate weekly effects.
+
+* Sample: `data/sample/experiments.csv`
+
+Run with:
+
+```bash
+python scripts/paos_run.py all \
+  --input-type csv \
+  --input data/sample/daily_log.csv \
+  --experiments-spec data/sample/experiments.csv \
+  --out reports_demo
+```
+
+---
+
+## Energy prediction (optional)
+
+PAOS includes an optional ML module that can train a simple model to predict `energy_focus`
+from leakage-safe features (lags/rolling means).
+
+### Train
+
+```bash
+python scripts/paos_run.py train-model \
+  --processed data/processed/daily_log_enriched.csv \
+  --model-type ridge \
+  --model-path models/energy_model.pkl \
+  --out reports_demo
+```
+
+### Predict into a new CSV
+
+```bash
+python scripts/paos_run.py predict-energy \
+  --processed data/processed/daily_log_enriched.csv \
+  --model-path models/energy_model.pkl \
+  --pred-out data/processed/daily_log_enriched_with_preds.csv
+```
+
+Model types:
+
+* `baseline`
+* `ridge`
+* `rf` (random forest)
+
+---
+
+## Developer commands (Windows / PowerShell)
+
+Helper script: `scripts/dev.ps1`
 
 ```powershell
 # one-time environment setup
@@ -69,596 +412,104 @@ If you're on Windows/PowerShell, you can use the helper script:
 # run tests
 .\scripts\dev.ps1 test
 
-# run demo on synthetic sample data (writes to reports_demo/)
+# demo run (writes to reports_demo/)
 .\scripts\dev.ps1 demo
 
-# generate a weekly report (writes to reports_demo/weekly and data/processed/weekly)
+# run dashboard
+.\scripts\dev.ps1 dashboard
+
+# weekly + monthly demo outputs (deterministic demo date by default)
 .\scripts\dev.ps1 weekly
+.\scripts\dev.ps1 monthly
+
+# optional: override anchor date
+.\scripts\dev.ps1 weekly -Today "2026-01-20"
 ```
 
 ---
 
-## What I log (inputs)
-
-### Always required (every day)
-
-* **Date**
-* **Steps** (from phone/wearable)
-* **Energy/Focus** score (1–5)
-* **Did you exercise today?** (Yes/No)
-
-### Only if I exercised (optional fields)
-
-* **Exercise Type** (cardio/strength/mobility/sports)
-* **Exercise Duration** (minutes)
-* **Heart Rate Zone** (light/moderate/intense/peak based on effort)
-
-### Optional any day
-
-* **Notes** (context)
-
-**Important:** On rest days, my **exercise fields can be blank**. Notes can be blank any day.
-
----
-
-## What PAOS gives me (outputs)
-
-* **Activity Level** score (0–100)
-* **Lifestyle Status** category: Sedentary → Lightly Active → Active → Very Active
-* **Recommendation text per day**
-* Weekly correlation analysis (Activity ↔ Energy/Focus)
-* Interactive charts (Plotly) + static backups (Matplotlib)
-* A clean report I can share publicly (without private raw data)
-
----
-
-## The system design (at a glance)
-
-* ✅ One row per day (clean data model)
-* ✅ Explainable scoring (0–100)
-* ✅ Flexible logging (steps-only OR steps + exercise)
-* ✅ Heart rate-based intensity (captures effort, not just duration)
-* ✅ Interpretable recommendations (rules first, smarter later)
-* ✅ Trend analysis + correlation checks
-* ✅ Export-ready output for BI tools
-* ✅ Privacy-first repo structure (raw data excluded)
-
----
-
-## Tech Stack
-
-**Language**
+## Tech stack (actual repo)
 
 * Python 3.11+
-
-**Data Processing**
-
-* pandas
-* numpy
-* DuckDB (analytics database)
-
-**Visualization**
-
-* Plotly (interactive charts - primary)
-* Matplotlib (static charts - backup)
-* Seaborn (optional, notebook EDA)
-
-**Data Sources**
-
-* Google Forms → Google Sheets (my default logging method)
-* CSV files (local storage)
-* Official Google Sheets API (OAuth + token caching)
-
-**Testing & Quality**
-
-* pytest
-* Git/GitHub
-* GitHub Actions (CI)
-
-**Dashboard (v2)**
-
-* Streamlit
+* pandas, numpy
+* Plotly (interactive charts)
+* Matplotlib (static charts)
+* Streamlit (dashboard)
+* Google Sheets API (official client libs)
+* pytest (tests)
+* ruff (lint + format)
+* scikit-learn + joblib (optional energy prediction module)
 
 ---
 
-## Project structure
+## Project structure (actual repo)
 
 ```text
-paos/
-├── data/
-│   ├── raw/                  # my real private inputs (DO NOT COMMIT)
-│   ├── processed/            # local enriched outputs (usually DO NOT COMMIT)
-│   └── sample/               # synthetic/anonymized examples (OK to commit)
-├── notebooks/                # EDA and exploration
-├── reports/                  # local reports output (ignored)
-├── reports_demo/             # public demo outputs (OK to commit)
-│   ├── figures/
-│   │   ├── interactive/      # Plotly HTML files
-│   │   └── static/           # Matplotlib PNG files
-│   └── summary.md            # weekly summary (demo)
-├── src/
-│   └── paos/
-│       ├── config.py         # thresholds + points live here
-│       ├── ingest/           # ingestion (CSV, Sheets)
-│       ├── transform/        # scoring, classification, recommendations
-│       ├── analysis/         # trends, correlations, streaks
-│       └── viz/              # chart generation
-├── scripts/
-│   └── paos_run.py           # pipeline runner
-├── tests/
-│   └── test_*.py             # unit tests
+Personal-Activity-Optimization-System-main/
+├── .github/workflows/tests.yml
+├── .env.example
+├── pyproject.toml
 ├── requirements.txt
-└── README.md
+├── README.md
+├── streamlit_app.py
+├── scripts/
+│   ├── dev.ps1
+│   ├── paos_run.py
+│   ├── paos_weekly_report.py
+│   ├── paos_monthly_report.py
+│   ├── sheets_smoke_test.py
+│   └── sheets_to_df_test.py
+├── src/paos/
+│   ├── config.py
+│   ├── ingest/              # CSV + Sheets ingestion (+ optional HR columns normalization)
+│   ├── transform/           # scoring, HR zone inference, recommendations
+│   ├── viz/                 # Plotly + Matplotlib exports
+│   ├── analysis/            # weekly/monthly summaries
+│   ├── insights/            # privacy-safe insight generation + redaction helpers
+│   ├── experiments/         # experiment assignment + effects
+│   ├── benchmarks/          # benchmark comparisons
+│   └── machine_learning/    # optional energy model training + prediction
+├── data/
+│   ├── sample/              # synthetic sample data (safe to commit)
+│   └── benchmarks/          # benchmark templates + docs
+├── reports_demo/            # public demo outputs (safe to commit)
+└── tests/                   # unit tests
 ```
 
 ---
 
-## Runner stages (v2)
+## Testing + CI
 
-PAOS supports running smaller parts of the pipeline to debug faster.
-
-### 1) all (default)
-
-Runs ingest → transform → report.
+Local:
 
 ```bash
-python scripts/paos_run.py all --input-type csv --input data/sample/daily_log.csv --out reports_demo
+pytest -v
+ruff check .
+ruff format .
 ```
 
-### 2) ingest
-
-Loads and cleans the input, then writes the ingested CSV to `--processed` (no scoring, no charts).
-
-```bash
-python scripts/paos_run.py ingest --input-type csv --input data/sample/daily_log.csv --processed data/processed/daily_log_ingested.csv
-```
-
-### 3) transform
-
-Scores/enriches the data and writes the enriched CSV to `--processed` (no charts).
-
-```bash
-python scripts/paos_run.py transform --input-type csv --input data/sample/daily_log.csv --processed data/processed/daily_log_enriched.csv
-```
-
-### 4) report
-
-Generates `summary.md` + figures from an already-enriched CSV (no ingest, no scoring).
-
-```bash
-python scripts/paos_run.py report --processed data/processed/daily_log_enriched.csv --out reports_demo
-```
-
----
-
-## Dashboard (Streamlit)
-
-PAOS includes a simple Streamlit dashboard that loads the enriched CSV and lets you explore your results quickly.
-
-### Run the dashboard
-
-1) Generate an enriched CSV (example using sample data):
-
-```bash
-python scripts/paos_run.py transform --input-type csv --input data/sample/daily_log.csv --processed data/processed/daily_log_enriched.csv
-```
-
-2) Start Streamlit:
-
-```bash
-python -m streamlit run streamlit_app.py
-```
-
----
-
-## Quick start (my real workflow)
-
-1. **Clone**
-
-```bash
-git clone <YOUR_REPO_URL>
-cd paos
-```
-
-2. **Install**
-
-```bash
-python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-```
-
-3. **Log daily**
-
-* Google Forms → Google Sheets (default)
-* or Local CSV (offline)
-
-4. **Run the pipeline (CSV)**
-
-```bash
-python scripts/paos_run.py all --input-type csv --input data/raw/daily_log.csv --out reports
-```
-
-5. **Run the pipeline (Sheets)**
-
-```bash
-python scripts/paos_run.py all --input-type sheets --sheet-id "<YOUR_ID>" --sheet-range "Form Responses 1!A1:J" --out reports
-```
-
-> I keep `data/raw/` private and generate local outputs into `reports/` (ignored).
-> For GitHub demos, I run against `data/sample/` and output to `reports_demo/`.
-
----
-
-## Sheets setup (OAuth + env defaults)
-
-PAOS supports environment defaults so you don’t need to pass `--sheet-id` and `--sheet-range` every time.
-
-Create a `.env` file locally (it is gitignored). Use `.env.example` as a template:
-
-```bash
-PAOS_SHEETS_ID=your_sheet_id_here
-PAOS_SHEETS_RANGE=Form Responses 1!A1:J
-```
-
-Then you can run:
-
-```bash
-python scripts/paos_run.py all --input-type sheets --out reports
-```
-
-### Optional: dump a raw Sheets snapshot (debug)
-
-When Sheets data changes or breaks, you can export the exact raw pull (pre-clean) to a CSV:
-
-```bash
-python scripts/paos_run.py all --input-type sheets --dump-raw --raw-out data/processed/sheets_raw.csv --out reports
-```
-
----
-
-## How I log data
-
-### Option A: Google Forms → Google Sheets (default)
-
-I use a Google Form with **conditional sections**, so the exercise fields only appear if I actually exercised.
-
-#### Form structure (sections + question types)
-
-**Section 1 — Daily (Required)**
-
-* **date** → *Date* (Required)
-* **steps** → *Short answer* (Required)
-
-  * Validation: number, integer, min 1 (optional max 60000)
-* **energy_focus** → *Linear scale 1–5* (Required)
-* **did_exercise** → *Multiple choice (Yes/No)* (Required)
-
-  * Turn on **Go to section based on answer**
-  * If **Yes** → Section 2
-  * If **No** → Section 3
-
-**Section 2 — Exercise Details (Only if you exercised)**
-**Description (paste into Google Forms):**
-
-> I fill this section only if I did a dedicated workout today. I enter my main exercise type, total minutes, and effort zone (using my tracker average HR, or the talk test if I don’t have HR data).
-> Talk test: sing = light, full sentences = moderate, short phrases = intense, can’t talk = peak.
-
-Questions (all Required in this section):
-
-* **exercise_type** → *Dropdown* (cardio/strength/mobility/sports)
-* **exercise_minutes** → *Short answer* (integer minutes)
-* **heart_rate_zone** → *Dropdown* (light/moderate/intense/peak/unknown)
-
-**Section 3 — Notes (Optional)**
-**Description (paste into Google Forms):**
-
-> I use this for optional context that might explain my activity or energy (e.g., stress, sleep, travel, sickness). I avoid sensitive details if I plan to export/share summaries later.
-
-Question:
-
-* **notes** → *Paragraph* (Optional)
-
-#### Sheets export → PAOS ingestion
-
-Google Forms exports a **Timestamp** column plus my question columns. PAOS cleans it by:
-
-* standardizing column names
-* deduplicating by `date` (keep latest submission)
-* treating missing exercise fields as **no exercise** for scoring
-
-> My raw form responses keep exercise fields blank on rest days; PAOS only turns that into numeric **exercise_points = 0** during computation.
-
----
-
-### Option B: Local CSV
-
-I can log either a **minimal CSV** (no exercise columns) or a **full CSV** (mixed days).
-
-**Minimal CSV (steps-only logging)**
-
-```csv
-date,steps,energy_focus,did_exercise,notes
-2026-01-14,6500,3,No,
-2026-01-16,7200,4,No,"Felt good"
-```
-
-**Full CSV (mixed days; exercise columns may be blank on rest days)**
-
-```csv
-date,steps,energy_focus,did_exercise,exercise_type,exercise_minutes,heart_rate_zone,notes
-2026-01-13,8200,4,Yes,cardio,30,moderate,"Morning jog"
-2026-01-14,6500,3,No,,,,"Normal workday"
-2026-01-15,10500,5,Yes,strength,45,intense,"Gym session"
-2026-01-16,7500,3,No,,,,"Rest day"
-```
-
-**CSV Rules**
-
-* Always required: `date`, `steps`, `energy_focus`, `did_exercise`
-* Optional: `exercise_type`, `exercise_minutes`, `heart_rate_zone`, `notes`
-* If `did_exercise = No`, exercise fields can be blank
-
----
-
-## My personal profile (current)
-
-* Age: **22**
-* Height: **5'6"**
-* Weight: **70–75 kg**
-* Max HR (v1 estimate): **198 bpm** (`220 - age`)
-
----
-
-## My heart rate zones (PAOS v1)
-
-I use **% of Max HR** bands (with a “talk test” fallback).
-
-Max HR: **198 bpm**
-
-| Zone     | % Max  | HR Range (bpm) | How I tell (talk test)         |
-| -------- | ------ | -------------- | ------------------------------ |
-| Light    | 50-60% | 99-119         | I can sing comfortably         |
-| Moderate | 60-70% | 119-139        | I can talk in full sentences   |
-| Intense  | 70-85% | 139-168        | I can only speak short phrases |
-| Peak     | 85-95% | 168-188        | I can’t talk, just breathe     |
-
-> If I don’t have a tracker, I choose the zone using the talk test.
-
----
-
-## Data model
-
-### Raw inputs (what I log)
-
-I store one row per day, and I allow exercise fields to be empty when I don’t exercise.
-
-| Column           | Type     | Required | Example     | Notes                                  |
-| ---------------- | -------- | -------- | ----------- | -------------------------------------- |
-| date             | date     | ✅        | 2026-01-15  | primary key                            |
-| steps            | int      | ✅        | 8123        | total daily steps                      |
-| energy_focus     | int      | ✅        | 4           | 1–5 scale                              |
-| did_exercise     | bool/str | ✅        | Yes/No      | controls whether exercise fields exist |
-| exercise_type    | str      | ❌        | cardio      | blank if no exercise                   |
-| exercise_minutes | int      | ❌        | 35          | blank if no exercise                   |
-| heart_rate_zone  | str      | ❌        | moderate    | blank if no exercise                   |
-| notes            | str      | ❌        | "Deadlines" | optional, sensitive                    |
-
-### Enriched outputs (computed by PAOS)
-
-PAOS generates computed fields for analysis and reporting:
-
-* `step_points`
-* `exercise_points` *(computed as 0 if I didn’t exercise)*
-* `activity_level` (0–100)
-* `lifestyle_status`
-* `recommendation`
-
-> Exercise fields can be blank in my raw logs, but PAOS still needs numeric values for scoring.
-> So during computation, PAOS treats “no exercise” as **exercise_points = 0** (computed), without requiring me to log “0” in the form.
-
----
-
-## My scoring logic (explainable on purpose)
-
-### Step component (0–50)
-
-| Steps     | Points |
-| --------- | ------ |
-| < 5000    | 10     |
-| 5000–6999 | 25     |
-| 7000–9999 | 35     |
-| ≥ 10000   | 50     |
-
-### Exercise component (0–50)
-
-I only compute this if `did_exercise = Yes`. If I didn’t exercise, PAOS computes **exercise_points = 0**.
-
-**Formula**
-
-```text
-Exercise Points = base_duration_points × heart_rate_multiplier (max 50)
-```
-
-**Duration Points**
-
-* < 20 min: 10 points
-* 20–39 min: 25 points
-* 40–60 min: 35 points
-* > 60 min: 45 points
-
-**Heart Rate Zone Multipliers**
-
-* Light: 0.5x
-* Moderate: 1.0x
-* Intense: 1.5x
-* Peak: 2.0x
-
-Implementation detail:
-
-```text
-exercise_points = min(50, int(base_points * multiplier))
-```
-
-### Total (0–100)
-
-```text
-activity_level = step_points + exercise_points
-```
-
-### Lifestyle Status
-
-| Activity Level | Status         |
-| -------------- | -------------- |
-| 0–25           | Sedentary      |
-| 26–50          | Lightly Active |
-| 51–75          | Active         |
-| 76–100         | Very Active    |
-
----
-
-## My daily recommendations
-
-Baseline (fast + interpretable):
-
-* **0–25 (Sedentary):** “Add a 20–30 min walk to increase activity and energy.”
-* **26–50 (Lightly Active):** “Include a moderate session to reach Active status.”
-* **51–75 (Active):** “Maintain routine; add variety (strength/mobility) to avoid plateaus.”
-* **76–100 (Very Active):** “Excellent, prioritize recovery (sleep, hydration).”
-
-Trend-aware upgrades I plan (v2):
-
-* Downtrend 3+ days → rebuild momentum plan
-* High activity + low energy → recovery check
-* Weekday dips → scheduling nudge
-* Consecutive sedentary days → motivational nudge
-
----
-
-## Visualizations
-
-My default set (interactive + static):
-
-1. Activity Level over time
-2. Lifestyle Status counts
-3. Activity vs Energy/Focus scatter
-
-Outputs (in the chosen output directory):
-
-* Plotly HTML → `figures/interactive/`
-* Matplotlib PNG → `figures/static/`
-
----
-
-## Pipeline contract (what my script does)
-
-```bash
-python scripts/paos_run.py all --input-type csv --input <csv_path> --out <output_dir>
-```
-
-Outputs:
-
-* `data/processed/daily_log_enriched.csv`
-* `<output_dir>/figures/interactive/*.html`
-* `<output_dir>/figures/static/*.png`
-* `<output_dir>/summary.md`
-
----
-
-## Testing
-
-Run:
-
-```bash
-pytest tests/ -v
-```
+CI (GitHub Actions) runs:
+
+* install deps
+* `ruff check .`
+* `ruff format --check .`
+* `pytest -v`
 
 ---
 
 ## Privacy & ethics (non-negotiable)
 
-* I treat this as sensitive personal wellness data.
-* I don’t publish raw daily logs.
-* I commit only synthetic sample data + demo outputs.
-* Notes can contain private info; I exclude them from public outputs by default.
-* Heart rate data is personal health information; I handle it carefully.
-* All personal data stays in `data/raw/` (gitignored).
-* This is not medical advice — it’s a personal tracking tool.
+* This is a personal wellness analytics tool, **not medical advice**
+* Real personal logs stay in local paths that are **gitignored**
+* This repo includes only **synthetic sample data** and **public-safe outputs**
+* Notes may contain sensitive context; treat them carefully
 
 ---
 
 ## Roadmap
 
-### v1 (MVP) - Completed
-
-* ✅ CSV ingestion
-* ✅ Flexible logging (exercise fields can be blank)
-* ✅ Heart rate zone-based scoring
-* ✅ Lifestyle status classification
-* ✅ Basic recommendations
-* ✅ Export enriched CSV
-* ✅ Interactive + static charts
-* ✅ Weekly summary generation
-* ✅ Unit tests
-* ✅ GitHub Actions CI
-
-### v2 (Enhanced) - In progress
-
-* ✅ Google Sheets ingestion via official API
-* Streamlit dashboard with filters
-* Automated weekly report generator
-* Trend-aware recommendations
-* HR zone visualization
-* Monthly progress reports
-
-### v3 (Advanced)
-
-* Regression model: predict energy from activity + context
-* Auto HR zone detection from BPM/time-in-zone
-* Privacy-safe automated insight generation
-* Experiment tracking framework (A/B test behavior changes)
-* Population benchmark comparisons (anonymized)
-
----
-
-## Installation
-
-```bash
-pip install -r requirements.txt
-```
-
----
-
-## Sample Data
-
-This is synthetic sample data (safe to commit).
-On rest days, the exercise fields are intentionally blank (because my form skips them):
-
-```csv
-date,steps,energy_focus,did_exercise,exercise_type,exercise_minutes,heart_rate_zone,notes
-2026-01-13,8200,4,Yes,cardio,30,moderate,"Morning jog"
-2026-01-14,6500,3,No,,,,"Normal workday"
-2026-01-15,10500,5,Yes,strength,45,intense,"Gym session"
-2026-01-16,7500,3,No,,,,"Rest day"
-2026-01-17,9200,4,Yes,sports,60,intense,"Basketball with friends"
-2026-01-18,5200,2,No,,,,"Busy day, low activity"
-2026-01-19,11500,4,Yes,cardio,40,moderate,"Long Sunday walk"
-```
-
----
-
-## License
-
-MIT License.
-
----
-
-## References
-
-* Google Sheets API (Python quickstart): [https://developers.google.com/workspace/sheets/api/quickstart/python](https://developers.google.com/workspace/sheets/api/quickstart/python)
-* DuckDB Python docs: [https://duckdb.org/docs/stable/clients/python/overview](https://duckdb.org/docs/stable/clients/python/overview)
-* Plotly Python docs: [https://plotly.com/python/](https://plotly.com/python/)
-* Streamlit docs: [https://docs.streamlit.io/](https://docs.streamlit.io/)
-* Heart Rate Training Zones basics: [https://www.polar.com/blog/running-heart-rate-zones-basics/](https://www.polar.com/blog/running-heart-rate-zones-basics/)
-* pandas docs: [https://pandas.pydata.org/docs/](https://pandas.pydata.org/docs/)
-* pytest docs: [https://docs.pytest.org/](https://docs.pytest.org/)
+* Trend-aware recommendation rules (momentum, recovery flags, weekday patterns)
+* More dashboard filters + drilldowns
+* Better HR visualizations (time-in-zone charts)
+* Experiment framework upgrades (more robust effect metrics)
+* Privacy-safe automated insight generation improvements
