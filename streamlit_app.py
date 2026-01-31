@@ -25,6 +25,14 @@ def _load_cached(path_str: str) -> pd.DataFrame:
     return load_enriched_csv(Path(path_str))
 
 
+@st.cache_data
+def _load_uploaded_cached(file_bytes: bytes) -> pd.DataFrame:
+    # cache_data prefers hashable inputs; bytes are hashable
+    from io import BytesIO
+
+    return load_enriched_csv(BytesIO(file_bytes))
+
+
 def _status_from_activity_level(level: float) -> str:
     if level <= 25:
         return "Sedentary"
@@ -51,11 +59,38 @@ def main() -> None:
 
     cfg = DashboardDataConfig()
 
-    csv_path_str = st.text_input("Enriched CSV path", value=str(DEFAULT_ENRICHED_CSV))
-    csv_path = Path(csv_path_str)
+    # -----------------------
+    # Data source
+    # -----------------------
+    st.sidebar.header("Data")
+    data_source = st.sidebar.radio(
+        "Data source",
+        ["Processed file", "Upload CSV"],
+        index=0,
+    )
 
     try:
-        df = _load_cached(str(csv_path))
+        if data_source == "Processed file":
+            csv_path_str = st.sidebar.text_input(
+                "Enriched CSV path",
+                value=str(DEFAULT_ENRICHED_CSV),
+            )
+            csv_path = Path(csv_path_str)
+            df = _load_cached(str(csv_path))
+
+        else:
+            uploaded = st.sidebar.file_uploader(
+                "Upload an enriched PAOS CSV",
+                type=["csv"],
+                accept_multiple_files=False,
+            )
+
+            if uploaded is None:
+                st.info("Upload an enriched CSV to continue.")
+                st.stop()
+
+            df = _load_uploaded_cached(uploaded.getvalue())
+
     except FileNotFoundError:
         st.error(
             f"Could not find the enriched CSV at: `{csv_path}`\n\n"
