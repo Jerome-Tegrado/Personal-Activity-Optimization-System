@@ -18,6 +18,20 @@ from paos.dashboard.data import (
 DEFAULT_ENRICHED_CSV = Path("data/processed/daily_log_enriched.csv")
 STATUS_ORDER = ["Sedentary", "Lightly Active", "Active", "Very Active"]
 
+# Widget keys (centralized so reset is easy + consistent)
+KEY_SHOW_CHECKS = "opt_show_checks"
+KEY_SHOW_PREVIEW = "opt_show_preview"
+KEY_TREND_GRANULARITY = "opt_trend_granularity"
+KEY_STATUS_COUNT_MODE = "opt_status_count_mode"
+
+KEY_DATA_SOURCE = "data_source"
+KEY_ENRICHED_PATH = "data_enriched_path"
+KEY_UPLOAD = "data_upload"
+
+KEY_DATE_RANGE = "filter_date_range"
+KEY_HR_GRANULARITY = "hr_zone_granularity"
+KEY_HR_METRIC = "hr_zone_metric"
+
 
 @st.cache_data
 def _load_cached(path_str: str) -> pd.DataFrame:
@@ -71,9 +85,7 @@ def _weekly_status_counts(df: pd.DataFrame) -> pd.DataFrame:
 
 
 @st.cache_data
-def _weekly_hr_zone(
-    df: pd.DataFrame, metric: str
-) -> pd.DataFrame:
+def _weekly_hr_zone(df: pd.DataFrame, metric: str) -> pd.DataFrame:
     # Produces weekly HR zone breakdown for exercised rows.
     # metric: "days" or "minutes"
     if metric not in {"days", "minutes"}:
@@ -128,6 +140,29 @@ def _status_from_activity_level(level: float) -> str:
     return "Very Active"
 
 
+def _reset_filters_to_defaults() -> None:
+    """
+    Reset widget state to defaults. This works because Streamlit widgets are
+    driven by st.session_state values keyed by `key=...`.
+    """
+    st.session_state[KEY_SHOW_CHECKS] = True
+    st.session_state[KEY_SHOW_PREVIEW] = False
+    st.session_state[KEY_TREND_GRANULARITY] = "Daily"
+    st.session_state[KEY_STATUS_COUNT_MODE] = "Days"
+
+    # Data source defaults
+    st.session_state[KEY_DATA_SOURCE] = "Processed file"
+    st.session_state[KEY_ENRICHED_PATH] = str(DEFAULT_ENRICHED_CSV)
+    st.session_state.pop(KEY_UPLOAD, None)  # clear uploaded file if any
+
+    # Filter defaults: clear date range override so we re-default to full span
+    st.session_state.pop(KEY_DATE_RANGE, None)
+
+    # HR zone widget defaults
+    st.session_state[KEY_HR_GRANULARITY] = "Daily"
+    st.session_state[KEY_HR_METRIC] = "Exercise Days"
+
+
 def main() -> None:
     st.set_page_config(page_title="PAOS Dashboard", layout="wide")
     st.title("PAOS Dashboard (v2)")
@@ -136,11 +171,27 @@ def main() -> None:
         "This dashboard loads the **enriched PAOS CSV** and helps you explore activity + energy trends."
     )
 
+    # -----------------------
+    # Sidebar: Reset button
+    # -----------------------
+    st.sidebar.header("Controls")
+    if st.sidebar.button("Reset filters", type="secondary"):
+        _reset_filters_to_defaults()
+        st.rerun()
+
     st.sidebar.header("Options")
-    show_checks = st.sidebar.checkbox("Show data checks", value=True)
-    show_preview = st.sidebar.checkbox("Show data preview", value=False)
-    trend_granularity = st.sidebar.selectbox("Trend granularity", ["Daily", "Weekly"])
-    status_count_mode = st.sidebar.selectbox("Status counts by", ["Days", "Weeks"])
+    show_checks = st.sidebar.checkbox(
+        "Show data checks", value=True, key=KEY_SHOW_CHECKS
+    )
+    show_preview = st.sidebar.checkbox(
+        "Show data preview", value=False, key=KEY_SHOW_PREVIEW
+    )
+    trend_granularity = st.sidebar.selectbox(
+        "Trend granularity", ["Daily", "Weekly"], key=KEY_TREND_GRANULARITY
+    )
+    status_count_mode = st.sidebar.selectbox(
+        "Status counts by", ["Days", "Weeks"], key=KEY_STATUS_COUNT_MODE
+    )
 
     cfg = DashboardDataConfig()
 
@@ -152,6 +203,7 @@ def main() -> None:
         "Data source",
         ["Processed file", "Upload CSV"],
         index=0,
+        key=KEY_DATA_SOURCE,
     )
 
     try:
@@ -159,6 +211,7 @@ def main() -> None:
             csv_path_str = st.sidebar.text_input(
                 "Enriched CSV path",
                 value=str(DEFAULT_ENRICHED_CSV),
+                key=KEY_ENRICHED_PATH,
             )
             csv_path = Path(csv_path_str)
             df = _load_cached(str(csv_path))
@@ -168,6 +221,7 @@ def main() -> None:
                 "Upload an enriched PAOS CSV",
                 type=["csv"],
                 accept_multiple_files=False,
+                key=KEY_UPLOAD,
             )
 
             if uploaded is None:
@@ -254,7 +308,12 @@ def main() -> None:
         min_date = filtered["date"].min().date()
         max_date = filtered["date"].max().date()
 
-        start, end = st.date_input("Date range", value=(min_date, max_date))
+        # Use a key so Reset can clear it
+        start, end = st.date_input(
+            "Date range",
+            value=(min_date, max_date),
+            key=KEY_DATE_RANGE,
+        )
 
         start_ts = pd.Timestamp(start) if start else None
         end_ts = pd.Timestamp(end) if end else None
@@ -419,14 +478,14 @@ def main() -> None:
             "Granularity",
             options=["Daily", "Weekly"],
             horizontal=True,
-            key="hr_zone_granularity",
+            key=KEY_HR_GRANULARITY,
         )
 
         metric_label = st.radio(
             "Measure",
             options=["Exercise Days", "Exercise Minutes"],
             horizontal=True,
-            key="hr_zone_metric",
+            key=KEY_HR_METRIC,
         )
         metric = "days" if metric_label == "Exercise Days" else "minutes"
 
