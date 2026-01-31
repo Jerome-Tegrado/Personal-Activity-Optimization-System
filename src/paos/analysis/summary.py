@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from datetime import date as _date
 from pathlib import Path
 from typing import Optional
 
 import pandas as pd
+
+from paos.insights.engine import InsightEngineConfig, generate_insights
 
 
 def _prepare_df_with_dates(df: pd.DataFrame) -> pd.DataFrame:
@@ -14,6 +15,18 @@ def _prepare_df_with_dates(df: pd.DataFrame) -> pd.DataFrame:
     out["date"] = pd.to_datetime(out["date"], errors="coerce")
     out = out.dropna(subset=["date"]).sort_values("date")
     return out
+
+
+def _render_insights_md(df: pd.DataFrame) -> list[str]:
+    """
+    Render privacy-safe insights into markdown bullet points.
+    Uses week bucketing by default (no exact dates).
+    """
+    insights = generate_insights(df, cfg=InsightEngineConfig(week_mode=True, min_days=7))
+    lines: list[str] = []
+    for ins in insights:
+        lines.append(f"- **{ins.title}:** {ins.message}")
+    return lines
 
 
 def write_weekly_summary(
@@ -80,6 +93,11 @@ def write_weekly_summary(
     md.append("## Trends")
     md.append(f"- Correlation (Activity ↔ Energy): {corr if corr is not None else 'N/A'}\n")
 
+    # v3 Section 3 Step 3: privacy-safe insights
+    md.append("## Insights")
+    md.extend(_render_insights_md(week))
+    md.append("")
+
     out_path.write_text("\n".join(md) + "\n", encoding="utf-8")
     return out_path
 
@@ -117,8 +135,16 @@ def write_monthly_summary(
     days_in_month = int(month_end.day)
     days_logged = len(m)
 
-    activity = pd.to_numeric(m.get("activity_level"), errors="coerce") if "activity_level" in m.columns else None
-    energy = pd.to_numeric(m.get("energy_focus"), errors="coerce") if "energy_focus" in m.columns else None
+    activity = (
+        pd.to_numeric(m.get("activity_level"), errors="coerce")
+        if "activity_level" in m.columns
+        else None
+    )
+    energy = (
+        pd.to_numeric(m.get("energy_focus"), errors="coerce")
+        if "energy_focus" in m.columns
+        else None
+    )
 
     avg_activity = round(float(activity.mean()), 1) if days_logged and activity is not None else 0
     avg_energy = round(float(energy.mean()), 1) if days_logged and energy is not None else 0
@@ -161,6 +187,11 @@ def write_monthly_summary(
 
     md.append("\n## Trends")
     md.append(f"- Correlation (Activity ↔ Energy): {corr if corr is not None else 'N/A'}\n")
+
+    # v3 Section 3 Step 3: privacy-safe insights
+    md.append("## Insights")
+    md.extend(_render_insights_md(m))
+    md.append("")
 
     out_path.write_text("\n".join(md) + "\n", encoding="utf-8")
     return out_path
