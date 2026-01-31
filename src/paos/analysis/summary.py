@@ -11,6 +11,9 @@ from paos.insights.engine import InsightEngineConfig, generate_insights
 from paos.experiments.assign import assign_experiments_to_days
 from paos.experiments.effects import compute_experiment_effects
 
+# Benchmarks (Section 5)
+from paos.benchmarks.compare import compare_to_benchmarks
+
 
 def _prepare_df_with_dates(df: pd.DataFrame) -> pd.DataFrame:
     out = df.copy()
@@ -38,6 +41,13 @@ def _fmt_num(x: object, decimals: int = 2) -> str:
     if pd.isna(v):
         return "N/A"
     return f"{float(v):.{decimals}f}"
+
+
+def _fmt_pct(x: object, decimals: int = 0) -> str:
+    v = pd.to_numeric(x, errors="coerce")
+    if pd.isna(v):
+        return "N/A"
+    return f"{float(v):.{decimals}f}%"
 
 
 def _verdict_from_delta_and_ci(
@@ -201,11 +211,65 @@ def _render_experiments_md(
     return lines
 
 
+def _render_benchmarks_md(
+    df_slice: pd.DataFrame,
+    spec_path: str | Path | None,
+    group: str = "adult",
+    metrics: tuple[str, ...] = ("steps", "activity_level"),
+) -> list[str]:
+    """
+    Render privacy-safe benchmark comparisons.
+
+    Output is aggregate-only:
+    - user mean/median
+    - approximate percentile vs benchmark cutpoints
+    - benchmark p25/p50/p75/p90
+
+    If spec_path is None or missing -> [] (silent skip).
+    """
+    if df_slice is None or df_slice.empty:
+        return []
+
+    if spec_path is None:
+        return []
+
+    spec_path = Path(spec_path)
+    if not spec_path.exists():
+        return []
+
+    results = compare_to_benchmarks(df_slice, spec_path=spec_path, group=group, metrics=metrics)
+    if not results:
+        return []
+
+    lines: list[str] = []
+    for r in results:
+        # Human label
+        name = r.metric.replace("_", " ").title()
+
+        pct = r.approx_percentile
+        pct_txt = "N/A" if pct is None else f"~p{int(round(float(pct)))}"
+
+        lines.append(
+            f"- **{name}:** median {_fmt_num(r.user_median, 0)} {r.unit} "
+            f"({pct_txt}) vs benchmark (p25={_fmt_num(r.benchmark_p25, 0)}, "
+            f"p50={_fmt_num(r.benchmark_p50, 0)}, p75={_fmt_num(r.benchmark_p75, 0)}, "
+            f"p90={_fmt_num(r.benchmark_p90, 0)})"
+        )
+
+        if r.source:
+            lines.append(f"  - Source: {r.source}")
+
+    return lines
+
+
 def write_weekly_summary(
     df: pd.DataFrame,
     out_path: str | Path,
     week_end: Optional[str] = None,
     experiments_spec: str | Path | None = None,
+    benchmarks_spec: str | Path | None = None,
+    benchmark_group: str = "adult",
+    benchmark_metrics: tuple[str, ...] = ("steps", "activity_level"),
 ) -> Path:
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -273,6 +337,18 @@ def write_weekly_summary(
     md.extend(_render_insights_md(week))
     md.append("")
 
+    # benchmarks (opt-in)
+    bench_lines = _render_benchmarks_md(
+        week,
+        spec_path=benchmarks_spec,
+        group=benchmark_group,
+        metrics=benchmark_metrics,
+    )
+    if bench_lines:
+        md.append("## Benchmarks")
+        md.extend(bench_lines)
+        md.append("")
+
     # experiment results (opt-in)
     exp_lines = _render_experiments_md(week, spec_path=experiments_spec)
     if exp_lines:
@@ -289,6 +365,9 @@ def write_monthly_summary(
     out_path: str | Path,
     month: Optional[str] = None,
     experiments_spec: str | Path | None = None,
+    benchmarks_spec: str | Path | None = None,
+    benchmark_group: str = "adult",
+    benchmark_metrics: tuple[str, ...] = ("steps", "activity_level"),
 ) -> Path:
     """
     Write a monthly summary markdown.
@@ -375,6 +454,18 @@ def write_monthly_summary(
     md.append("## Insights")
     md.extend(_render_insights_md(m))
     md.append("")
+
+    # benchmarks (opt-in)
+    bench_lines = _render_benchmarks_md(
+        m,
+        spec_path=benchmarks_spec,
+        group=benchmark_group,
+        metrics=benchmark_metrics,
+    )
+    if bench_lines:
+        md.append("## Benchmarks")
+        md.extend(bench_lines)
+        md.append("")
 
     # experiment results (opt-in)
     exp_lines = _render_experiments_md(m, spec_path=experiments_spec)

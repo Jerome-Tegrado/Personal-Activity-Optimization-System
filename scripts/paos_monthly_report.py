@@ -39,10 +39,6 @@ def _month_paths(out_root: Path, processed_root: Path, today: date) -> MonthlyPa
 
 
 def _build_paos_transform_cmd(args: argparse.Namespace, paths: MonthlyPaths) -> list[str]:
-    """
-    Build the subprocess command to run the PAOS pipeline into month-stamped folders.
-    Uses paos_run.py all so you get enriched csv + figures + weekly summary (if paos_run writes it).
-    """
     cmd = [
         sys.executable,
         "scripts/paos_run.py",
@@ -68,19 +64,25 @@ def _build_paos_transform_cmd(args: argparse.Namespace, paths: MonthlyPaths) -> 
             if args.raw_out:
                 cmd += ["--raw-out", str(args.raw_out)]
 
-    # ✅ passthrough experiments spec (opt-in)
-    exp_spec = getattr(args, "experiments_spec", None)
-    if exp_spec:
-        cmd += ["--experiments-spec", str(exp_spec)]
+    # experiments passthrough
+    if getattr(args, "experiments_spec", None):
+        cmd += ["--experiments-spec", str(args.experiments_spec)]
 
-    # ✅ passthrough no-figures
+    # ✅ benchmarks passthrough
+    if getattr(args, "benchmarks_spec", None):
+        cmd += ["--benchmarks-spec", str(args.benchmarks_spec)]
+    if getattr(args, "benchmark_group", None):
+        cmd += ["--benchmark-group", str(args.benchmark_group)]
+    if getattr(args, "benchmark_metrics", None):
+        cmd += ["--benchmark-metrics", str(args.benchmark_metrics)]
+
+    # no-figures passthrough
     if getattr(args, "no_figures", False):
         cmd += ["--no-figures"]
 
     return cmd
 
 
-# Back-compat for tests / older references
 def _build_paos_run_cmd(args: argparse.Namespace, paths: MonthlyPaths) -> list[str]:
     return _build_paos_transform_cmd(args, paths)
 
@@ -90,87 +92,44 @@ def main() -> int:
         description="Generate a monthly PAOS report by running the PAOS runner into a month-stamped folder."
     )
 
-    parser.add_argument(
-        "--input-type",
-        choices=["csv", "sheets"],
-        required=True,
-        help="Input source type for ingestion.",
-    )
+    parser.add_argument("--input-type", choices=["csv", "sheets"], required=True)
+    parser.add_argument("--input", type=Path, help="CSV input path (required for csv).")
 
-    parser.add_argument(
-        "--input",
-        type=Path,
-        help="Path to input CSV (required when --input-type csv).",
-    )
+    parser.add_argument("--sheet-id", type=str, default="")
+    parser.add_argument("--sheet-range", type=str, default="")
 
-    parser.add_argument(
-        "--sheet-id",
-        type=str,
-        default="",
-        help="Google Sheets spreadsheet id (optional if env defaults are set).",
-    )
+    parser.add_argument("--today", type=_parse_iso_date, default=date.today())
 
-    parser.add_argument(
-        "--sheet-range",
-        type=str,
-        default="",
-        help="Google Sheets A1 range (optional if env defaults are set).",
-    )
+    parser.add_argument("--out-root", type=Path, default=Path("reports") / "monthly")
+    parser.add_argument("--processed-root", type=Path, default=Path("data") / "processed" / "monthly")
 
-    parser.add_argument(
-        "--today",
-        type=_parse_iso_date,
-        default=date.today(),
-        help="Anchor date for month folder naming (YYYY-MM-DD). Defaults to today.",
-    )
+    parser.add_argument("--dump-raw", action="store_true")
+    parser.add_argument("--raw-out", type=Path, default=None)
 
-    parser.add_argument(
-        "--out-root",
-        type=Path,
-        default=Path("reports") / "monthly",
-        help="Root output folder. A YYYY-MM folder will be created inside.",
-    )
+    parser.add_argument("--experiments-spec", type=Path, default=None)
 
+    # ✅ Benchmarks (opt-in)
     parser.add_argument(
-        "--processed-root",
-        type=Path,
-        default=Path("data") / "processed" / "monthly",
-        help="Root processed folder. A YYYY-MM folder will be created inside.",
-    )
-
-    # Optional: passthrough debug flags for Sheets
-    parser.add_argument(
-        "--dump-raw",
-        action="store_true",
-        help="(Sheets only) Dump raw Sheets snapshot before cleaning (passes through to paos_run.py).",
-    )
-    parser.add_argument(
-        "--raw-out",
+        "--benchmarks-spec",
         type=Path,
         default=None,
-        help="(Sheets only) Output path for raw snapshot (requires --dump-raw).",
+        help="Path to benchmarks CSV spec. If omitted, no Benchmarks section is included.",
+    )
+    parser.add_argument(
+        "--benchmark-group",
+        type=str,
+        default="adult",
+        help='Benchmark group name (must match "group" in the benchmarks CSV).',
+    )
+    parser.add_argument(
+        "--benchmark-metrics",
+        type=str,
+        default="steps,activity_level",
+        help='Comma-separated metrics to benchmark (e.g. "steps,activity_level").',
     )
 
-    # ✅ opt-in experiments spec for monthly summary
-    parser.add_argument(
-        "--experiments-spec",
-        type=Path,
-        default=None,
-        help="Path to experiments CSV spec. If omitted, no Experiments section is included.",
-    )
-
-    # ✅ NEW: passthrough to paos_run.py
-    parser.add_argument(
-        "--no-figures",
-        action="store_true",
-        help="Skip figure generation (passes through to paos_run.py).",
-    )
-
-    parser.add_argument(
-        "--quiet",
-        action="store_true",
-        help="Reduce output (useful for CI/tests).",
-    )
+    parser.add_argument("--no-figures", action="store_true")
+    parser.add_argument("--quiet", action="store_true")
 
     args = parser.parse_args()
 
@@ -186,7 +145,6 @@ def main() -> int:
     paths = _month_paths(args.out_root, args.processed_root, args.today)
     cmd = _build_paos_transform_cmd(args, paths)
 
-    # Quiet mode: capture output, only show on failure
     if args.quiet:
         result = subprocess.run(cmd, check=False, capture_output=True, text=True)
     else:
@@ -208,7 +166,6 @@ def main() -> int:
         print(f"Monthly report complete (summary skipped: {e})")
         return 0
 
-    # Read enriched CSV then write month summary.md into out_dir
     if paths.processed_csv.exists():
         df_enriched = pd.read_csv(paths.processed_csv)
         summary_path = paths.out_dir / "summary.md"
@@ -217,6 +174,9 @@ def main() -> int:
             summary_path,
             month=paths.month_label,
             experiments_spec=args.experiments_spec,
+            benchmarks_spec=args.benchmarks_spec,
+            benchmark_group=args.benchmark_group,
+            benchmark_metrics=tuple(x.strip() for x in args.benchmark_metrics.split(",") if x.strip()),
         )
 
     if not args.quiet:

@@ -47,18 +47,24 @@ def _build_paos_run_cmd(args: argparse.Namespace, paths: WeeklyPaths) -> list[st
         str(paths.processed_csv),
     ]
 
-    if args.experiments_spec:
+    if getattr(args, "experiments_spec", None):
         cmd += ["--experiments-spec", str(args.experiments_spec)]
+
+    # ✅ Benchmarks passthrough (optional)
+    if getattr(args, "benchmarks_spec", None):
+        cmd += ["--benchmarks-spec", str(args.benchmarks_spec)]
+    if getattr(args, "benchmark_group", None):
+        cmd += ["--benchmark-group", str(args.benchmark_group)]
+    if getattr(args, "benchmark_metrics", None):
+        cmd += ["--benchmark-metrics", str(args.benchmark_metrics)]
 
     # ✅ passthrough no-figures
     if getattr(args, "no_figures", False):
         cmd += ["--no-figures"]
 
-
     if args.input_type == "csv":
         cmd += ["--input", str(args.input)]
     else:
-        # sheets: allow optional args (env defaults may exist in your config)
         if args.sheet_id:
             cmd += ["--sheet-id", args.sheet_id]
         if args.sheet_range:
@@ -90,19 +96,8 @@ def main() -> int:
         help="Path to input CSV (required when --input-type csv).",
     )
 
-    parser.add_argument(
-        "--sheet-id",
-        type=str,
-        default="",
-        help="Google Sheets spreadsheet id (optional if env defaults are set).",
-    )
-
-    parser.add_argument(
-        "--sheet-range",
-        type=str,
-        default="",
-        help="Google Sheets A1 range (optional if env defaults are set).",
-    )
+    parser.add_argument("--sheet-id", type=str, default="", help="Google Sheets spreadsheet id.")
+    parser.add_argument("--sheet-range", type=str, default="", help="Google Sheets A1 range.")
 
     parser.add_argument(
         "--today",
@@ -132,7 +127,26 @@ def main() -> int:
         help="Path to experiments CSV spec. If omitted, no Experiments section is included.",
     )
 
-    # ✅ NEW: passthrough to paos_run.py
+    # ✅ Benchmarks (opt-in)
+    parser.add_argument(
+        "--benchmarks-spec",
+        type=Path,
+        default=None,
+        help="Path to benchmarks CSV spec. If omitted, no Benchmarks section is included.",
+    )
+    parser.add_argument(
+        "--benchmark-group",
+        type=str,
+        default="adult",
+        help='Benchmark group name (must match "group" in the benchmarks CSV).',
+    )
+    parser.add_argument(
+        "--benchmark-metrics",
+        type=str,
+        default="steps,activity_level",
+        help='Comma-separated metrics to benchmark (e.g. "steps,activity_level").',
+    )
+
     parser.add_argument(
         "--no-figures",
         action="store_true",
@@ -152,11 +166,7 @@ def main() -> int:
         help="(Sheets only) Output path for raw snapshot (requires --dump-raw).",
     )
 
-    parser.add_argument(
-        "--quiet",
-        action="store_true",
-        help="Reduce output (useful for CI/tests).",
-    )
+    parser.add_argument("--quiet", action="store_true", help="Reduce output (CI/tests).")
 
     args = parser.parse_args()
 
@@ -175,7 +185,6 @@ def main() -> int:
     if not args.quiet:
         print("Running:", " ".join(cmd))
 
-    # Capture output only when quiet, but always surface it on failures.
     if args.quiet:
         result = subprocess.run(cmd, capture_output=True, text=True, check=False)
     else:
@@ -183,8 +192,6 @@ def main() -> int:
 
     if result.returncode != 0:
         print(f"Weekly report failed (exit={result.returncode})")
-
-        # If we captured output, print it to help debugging in CI/tests.
         if args.quiet:
             if result.stdout:
                 print("STDOUT:")
@@ -192,7 +199,6 @@ def main() -> int:
             if result.stderr:
                 print("STDERR:")
                 print(result.stderr)
-
         return result.returncode
 
     if not args.quiet:

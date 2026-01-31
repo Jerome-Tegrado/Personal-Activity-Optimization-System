@@ -18,6 +18,12 @@ def _pick_fn(module, candidates: tuple[str, ...]):
     )
 
 
+def _parse_csv_list(value: str) -> tuple[str, ...]:
+    items = [x.strip() for x in (value or "").split(",")]
+    items = [x for x in items if x]
+    return tuple(items)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="PAOS pipeline runner")
 
@@ -75,14 +81,31 @@ def main() -> None:
         help="Output folder for reports (summary + figures)",
     )
 
-    # Experiment spec path (opt-in experiments section)
+    # Experiments (opt-in)
     parser.add_argument(
         "--experiments-spec",
         default=None,
         help="Path to experiments CSV spec. If omitted, no Experiments section is included.",
     )
 
-    # ✅ NEW: allow skipping figures (useful for CI/tests)
+    # ✅ Benchmarks (opt-in)
+    parser.add_argument(
+        "--benchmarks-spec",
+        default=None,
+        help="Path to benchmarks CSV spec. If omitted, no Benchmarks section is included.",
+    )
+    parser.add_argument(
+        "--benchmark-group",
+        default="adult",
+        help='Benchmark group name to use (must match "group" in the benchmarks CSV).',
+    )
+    parser.add_argument(
+        "--benchmark-metrics",
+        default="steps,activity_level",
+        help='Comma-separated metrics to benchmark (e.g. "steps,activity_level").',
+    )
+
+    # Figures
     parser.add_argument(
         "--no-figures",
         action="store_true",
@@ -143,6 +166,7 @@ def main() -> None:
     from paos.ingest import load_daily_log
 
     enrich_fn = _pick_fn(scoring, ("enrich_daily_log", "enrich", "score_and_enrich", "add_scores"))
+    bench_metrics = _parse_csv_list(args.benchmark_metrics)
 
     # ✅ report-only stage (build summary + figures from an existing enriched CSV)
     if args.stage == "report":
@@ -154,7 +178,14 @@ def main() -> None:
         df_enriched = pd.read_csv(out_path)
 
         summary_path = out_dir / "summary.md"
-        write_weekly_summary(df_enriched, summary_path, experiments_spec=args.experiments_spec)
+        write_weekly_summary(
+            df_enriched,
+            summary_path,
+            experiments_spec=args.experiments_spec,
+            benchmarks_spec=args.benchmarks_spec,
+            benchmark_group=args.benchmark_group,
+            benchmark_metrics=bench_metrics,
+        )
 
         if not args.no_figures:
             export_figures(df_enriched, out_dir)
@@ -286,7 +317,14 @@ def main() -> None:
 
     # --- Summary + figures ---
     summary_path = out_dir / "summary.md"
-    write_weekly_summary(df_enriched, summary_path, experiments_spec=args.experiments_spec)
+    write_weekly_summary(
+        df_enriched,
+        summary_path,
+        experiments_spec=args.experiments_spec,
+        benchmarks_spec=args.benchmarks_spec,
+        benchmark_group=args.benchmark_group,
+        benchmark_metrics=bench_metrics,
+    )
 
     if not args.no_figures:
         export_figures(df_enriched, out_dir)
