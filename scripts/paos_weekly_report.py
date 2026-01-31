@@ -50,6 +50,11 @@ def _build_paos_run_cmd(args: argparse.Namespace, paths: WeeklyPaths) -> list[st
     if args.experiments_spec:
         cmd += ["--experiments-spec", str(args.experiments_spec)]
 
+    # ✅ passthrough no-figures
+    if getattr(args, "no_figures", False):
+        cmd += ["--no-figures"]
+
+
     if args.input_type == "csv":
         cmd += ["--input", str(args.input)]
     else:
@@ -127,6 +132,13 @@ def main() -> int:
         help="Path to experiments CSV spec. If omitted, no Experiments section is included.",
     )
 
+    # ✅ NEW: passthrough to paos_run.py
+    parser.add_argument(
+        "--no-figures",
+        action="store_true",
+        help="Skip figure generation (passes through to paos_run.py).",
+    )
+
     # Optional: passthrough debug flags for Sheets
     parser.add_argument(
         "--dump-raw",
@@ -187,6 +199,8 @@ def main() -> int:
         print("Weekly report complete")
         print(f"- Out dir: {paths.out_dir}")
         print(f"- Enriched CSV: {paths.processed_csv}")
+        if args.no_figures:
+            print("- Figures: skipped (--no-figures)")
 
     return 0
 

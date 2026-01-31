@@ -73,6 +73,9 @@ def _build_paos_transform_cmd(args: argparse.Namespace, paths: MonthlyPaths) -> 
     if exp_spec:
         cmd += ["--experiments-spec", str(exp_spec)]
 
+    # ✅ passthrough no-figures
+    if getattr(args, "no_figures", False):
+        cmd += ["--no-figures"]
 
     return cmd
 
@@ -148,12 +151,19 @@ def main() -> int:
         help="(Sheets only) Output path for raw snapshot (requires --dump-raw).",
     )
 
-    # ✅ NEW: opt-in experiments spec for monthly summary
+    # ✅ opt-in experiments spec for monthly summary
     parser.add_argument(
         "--experiments-spec",
         type=Path,
         default=None,
         help="Path to experiments CSV spec. If omitted, no Experiments section is included.",
+    )
+
+    # ✅ NEW: passthrough to paos_run.py
+    parser.add_argument(
+        "--no-figures",
+        action="store_true",
+        help="Skip figure generation (passes through to paos_run.py).",
     )
 
     parser.add_argument(
@@ -190,7 +200,7 @@ def main() -> int:
         print(f"Monthly report failed (exit={result.returncode})")
         return result.returncode
 
-    # Write monthly summary (new)
+    # Write monthly summary
     try:
         import pandas as pd
         from paos.analysis.summary import write_monthly_summary
@@ -214,6 +224,8 @@ def main() -> int:
         print(f"- Month:   {paths.month_label}")
         print(f"- Out dir: {paths.out_dir}")
         print(f"- Enriched CSV: {paths.processed_csv}")
+        if args.no_figures:
+            print("- Figures: skipped (--no-figures)")
 
     return 0
 
