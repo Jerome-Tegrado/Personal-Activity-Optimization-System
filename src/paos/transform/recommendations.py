@@ -11,6 +11,9 @@ SEDENTARY_MAX = 25
 HIGH_ACTIVITY_MIN = 70
 LOW_ENERGY_MAX = 2
 
+# Trend thresholds
+BOUNCE_BACK_DELTA = 20  # +20 activity vs yesterday (consecutive day) => praise
+
 
 def _is_missing(x: object) -> bool:
     try:
@@ -75,6 +78,7 @@ def recommend_series(df: pd.DataFrame) -> pd.Series:
       Rule #4: weekday dip (Mon–Fri sedentary) => scheduling nudge
       Rule #5: weekend recovery (Sat/Sun + high activity + low energy) => weekend-specific recovery nudge
       Rule #6: 3+ consecutive sedentary days => stronger escalation nudge
+      Rule #7: bounce-back (consecutive day + >= +20 activity) => praise nudge
     """
     if "activity_level" not in df.columns:
         raise ValueError("recommend_series requires an 'activity_level' column")
@@ -165,5 +169,12 @@ def recommend_series(df: pd.DataFrame) -> pd.Series:
             " Weekend recovery tip — keep it light today (easy walk/mobility) and prioritize sleep."
         )
         recs = recs.where(~weekend_recovery, recs + weekend_msg)
+
+    # -------------------------
+    # Rule #7: bounce-back praise
+    # -------------------------
+    bounce_back = consec_1 & ((a - a.shift(1)) >= BOUNCE_BACK_DELTA)
+    bounce_msg = " Nice bounce-back — great job increasing activity. Keep the streak going with something sustainable tomorrow."
+    recs = recs.where(~bounce_back, recs + bounce_msg)
 
     return recs

@@ -98,3 +98,28 @@ def test_recommend_series_weekend_recovery_nudge_triggers() -> None:
     )
     recs = recommend_series(df)
     assert "weekend recovery" in recs.iloc[0].lower()
+
+
+def test_recommend_series_bounce_back_praise_triggers_on_consecutive_jump() -> None:
+    df = pd.DataFrame(
+        {
+            "date": ["2026-01-01", "2026-01-02"],  # consecutive
+            "activity_level": [30, 55],  # +25 jump
+            "energy_focus": [3, 3],
+        }
+    )
+    recs = recommend_series(df)
+    assert "bounce-back" in recs.iloc[1].lower()
+    assert "bounce-back" not in recs.iloc[0].lower()
+
+
+def test_recommend_series_bounce_back_does_not_trigger_with_date_gap() -> None:
+    df = pd.DataFrame(
+        {
+            "date": ["2026-01-01", "2026-01-03"],  # not consecutive
+            "activity_level": [30, 60],  # big jump but gap
+            "energy_focus": [3, 3],
+        }
+    )
+    recs = recommend_series(df)
+    assert "bounce-back" not in recs.iloc[1].lower()
