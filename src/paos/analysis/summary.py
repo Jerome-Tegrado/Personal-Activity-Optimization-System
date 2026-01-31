@@ -41,21 +41,22 @@ def _fmt_num(x: object, decimals: int = 2) -> str:
 
 
 def _render_experiments_md(
-    week_df: pd.DataFrame,
+    df_slice: pd.DataFrame,
     spec_path: str | Path | None,
     n_boot: int = 500,
     ci: float = 0.95,
     seed: int = 42,
 ) -> list[str]:
     """
-    Render experiment effect results into markdown.
+    Render experiment effect results into markdown for a given df slice
+    (weekly slice or monthly slice).
 
     Behavior:
     - If spec_path is None -> experiments disabled -> return [].
     - If spec file doesn't exist -> return [] (silent skip).
     - Keeps output aggregate-only (no dates, no notes).
     """
-    if week_df is None or week_df.empty:
+    if df_slice is None or df_slice.empty:
         return []
 
     if spec_path is None:
@@ -65,9 +66,9 @@ def _render_experiments_md(
     if not spec_path.exists():
         return []
 
-    # Assign experiment/phase/label onto the week slice
+    # Assign experiment/phase/label onto the slice
     try:
-        assigned = assign_experiments_to_days(week_df, spec_path, date_col="date")
+        assigned = assign_experiments_to_days(df_slice, spec_path, date_col="date")
     except Exception:
         # If anything goes wrong with spec parsing/assignment, skip section (non-fatal)
         return []
@@ -217,12 +218,12 @@ def write_weekly_summary(
     md.append("## Trends")
     md.append(f"- Correlation (Activity ↔ Energy): {corr if corr is not None else 'N/A'}\n")
 
-    # v3 Section 3 Step 3: privacy-safe insights
+    # privacy-safe insights
     md.append("## Insights")
     md.extend(_render_insights_md(week))
     md.append("")
 
-    # v3 Section 4 Step 5: experiment results are opt-in via experiments_spec
+    # experiment results (opt-in)
     exp_lines = _render_experiments_md(week, spec_path=experiments_spec)
     if exp_lines:
         md.append("## Experiments")
@@ -237,6 +238,7 @@ def write_monthly_summary(
     df: pd.DataFrame,
     out_path: str | Path,
     month: Optional[str] = None,
+    experiments_spec: str | Path | None = None,
 ) -> Path:
     """
     Write a monthly summary markdown.
@@ -319,10 +321,17 @@ def write_monthly_summary(
     md.append("\n## Trends")
     md.append(f"- Correlation (Activity ↔ Energy): {corr if corr is not None else 'N/A'}\n")
 
-    # v3 Section 3 Step 3: privacy-safe insights
+    # privacy-safe insights
     md.append("## Insights")
     md.extend(_render_insights_md(m))
     md.append("")
+
+    # experiment results (opt-in)
+    exp_lines = _render_experiments_md(m, spec_path=experiments_spec)
+    if exp_lines:
+        md.append("## Experiments")
+        md.extend(exp_lines)
+        md.append("")
 
     out_path.write_text("\n".join(md) + "\n", encoding="utf-8")
     return out_path
