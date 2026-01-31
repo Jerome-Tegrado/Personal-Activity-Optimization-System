@@ -173,6 +173,21 @@ def main() -> None:
     )
 
     # -----------------------
+    # Sidebar: Help panel
+    # -----------------------
+    with st.sidebar.expander("Help", expanded=False):
+        st.markdown("**How to generate an enriched CSV**")
+        st.code(
+            "python scripts/paos_run.py transform --input-type csv --input data/sample/daily_log.csv "
+            "--processed data/processed/daily_log_enriched.csv",
+            language="bash",
+        )
+        st.markdown(
+            "- Use **Data source → Upload CSV** to load an enriched CSV from your machine.\n"
+            "- If you upload a *raw* (non-enriched) CSV, some charts will be unavailable until you run `transform`."
+        )
+
+    # -----------------------
     # Sidebar: Reset button
     # -----------------------
     st.sidebar.header("Controls")
@@ -195,6 +210,13 @@ def main() -> None:
     )
 
     cfg = DashboardDataConfig()
+
+    # -----------------------
+    # Sidebar: Expected columns (uses cfg)
+    # -----------------------
+    with st.sidebar.expander("Expected columns (enriched)", expanded=False):
+        for col in cfg.required_columns:
+            st.write(f"- `{col}`")
 
     # -----------------------
     # Data source
