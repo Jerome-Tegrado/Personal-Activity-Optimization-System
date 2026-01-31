@@ -73,6 +73,7 @@ def recommend_series(df: pd.DataFrame) -> pd.Series:
       Rule #2: strict 3-day consecutive downtrend in activity_level => momentum nudge
       Rule #3: 2+ consecutive sedentary days (<= 25) => streak-break nudge
       Rule #4: weekday dip (Mon–Fri sedentary) => scheduling nudge
+      Rule #5: weekend recovery (Sat/Sun + high activity + low energy) => weekend-specific recovery nudge
     """
     if "activity_level" not in df.columns:
         raise ValueError("recommend_series requires an 'activity_level' column")
@@ -104,9 +105,7 @@ def recommend_series(df: pd.DataFrame) -> pd.Series:
 
     # Helper: consecutive-day mask for "today" and "yesterday"
     if has_date:
-        # today is consecutive with yesterday
         consec_1 = d.diff() == pd.Timedelta(days=1)
-        # today and yesterday are both consecutive (3-day window)
         consec_2 = consec_1 & (d.diff().shift(1) == pd.Timedelta(days=1))
     else:
         consec_1 = pd.Series(True, index=out.index)
@@ -141,5 +140,20 @@ def recommend_series(df: pd.DataFrame) -> pd.Series:
             " Weekday dip detected — schedule a short walk (10–20 min) during a fixed slot (lunch/after work)."
         )
         recs = recs.where(~weekday_sedentary, recs + weekday_nudge)
+
+    # -------------------------
+    # Rule #5: weekend recovery
+    # -------------------------
+    if has_date and energy_col_exists:
+        weekday = pd.to_datetime(out["date"], errors="coerce").dt.weekday  # Mon=0 .. Sun=6
+        ef = pd.to_numeric(out["energy_focus"], errors="coerce")
+
+        weekend = weekday >= 5  # Sat/Sun
+        weekend_recovery = weekend & (a >= HIGH_ACTIVITY_MIN) & (ef <= LOW_ENERGY_MAX)
+
+        weekend_msg = (
+            " Weekend recovery tip — keep it light today (easy walk/mobility) and prioritize sleep."
+        )
+        recs = recs.where(~weekend_recovery, recs + weekend_msg)
 
     return recs
