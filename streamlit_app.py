@@ -188,20 +188,24 @@ def main() -> None:
         )
 
     # -----------------------
-    # Sidebar: Reset button
+    # Sidebar: Controls
     # -----------------------
     st.sidebar.header("Controls")
-    if st.sidebar.button("Reset filters", type="secondary"):
-        _reset_filters_to_defaults()
-        st.rerun()
+
+    col_a, col_b = st.sidebar.columns(2)
+    with col_a:
+        if st.button("Reset", type="secondary"):
+            _reset_filters_to_defaults()
+            st.rerun()
+
+    with col_b:
+        if st.button("Clear cache", type="secondary"):
+            st.cache_data.clear()
+            st.rerun()
 
     st.sidebar.header("Options")
-    show_checks = st.sidebar.checkbox(
-        "Show data checks", value=True, key=KEY_SHOW_CHECKS
-    )
-    show_preview = st.sidebar.checkbox(
-        "Show data preview", value=False, key=KEY_SHOW_PREVIEW
-    )
+    show_checks = st.sidebar.checkbox("Show data checks", value=True, key=KEY_SHOW_CHECKS)
+    show_preview = st.sidebar.checkbox("Show data preview", value=False, key=KEY_SHOW_PREVIEW)
     trend_granularity = st.sidebar.selectbox(
         "Trend granularity", ["Daily", "Weekly"], key=KEY_TREND_GRANULARITY
     )
