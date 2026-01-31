@@ -1,6 +1,6 @@
 param(
   [Parameter(Mandatory=$true)]
-  [ValidateSet("setup","lint","test","demo","dashboard")]
+  [ValidateSet("setup","lint","test","demo","dashboard","weekly")]
   [string]$Task
 )
 
@@ -31,5 +31,15 @@ if ($Task -eq "demo") {
 
 if ($Task -eq "dashboard") {
   python -m streamlit run streamlit_app.py
+  exit 0
+}
+
+if ($Task -eq "weekly") {
+  python scripts\paos_weekly_report.py `
+    --input-type csv `
+    --input data\sample\daily_log.csv `
+    --today 2026-01-20 `
+    --out-root reports_demo\weekly `
+    --processed-root data\processed\weekly
   exit 0
 }
