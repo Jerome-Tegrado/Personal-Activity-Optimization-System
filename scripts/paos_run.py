@@ -75,7 +75,7 @@ def main() -> None:
         help="Output folder for reports (summary + figures)",
     )
 
-    # NEW: experiment spec path (opt-in experiments section)
+    # Experiment spec path (opt-in experiments section)
     parser.add_argument(
         "--experiments-spec",
         default=None,
