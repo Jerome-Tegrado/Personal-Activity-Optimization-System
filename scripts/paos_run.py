@@ -29,7 +29,7 @@ def main() -> None:
 
     parser.add_argument(
         "stage",
-        choices=["all", "ingest", "transform", "report"],
+        choices=["all", "ingest", "transform", "report", "train-model", "predict-energy"],
         help="Pipeline stage to run",
     )
 
@@ -67,13 +67,43 @@ def main() -> None:
     parser.add_argument(
         "--processed",
         default="data/processed/daily_log_enriched.csv",
-        help="Output enriched CSV",
+        help="Output enriched CSV (also used as input for report/train-model/predict-energy).",
     )
     parser.add_argument(
         "--out",
         default="reports",
         help="Output folder for reports (summary + figures)",
     )
+
+    # v3 Machine Learning options (Section 1)
+    parser.add_argument(
+        "--model-type",
+        default="ridge",
+        choices=["baseline", "ridge", "rf"],
+        help="Energy model type to train/evaluate",
+    )
+    parser.add_argument(
+        "--test-size",
+        type=float,
+        default=0.2,
+        help="Test split size for evaluation (time-based)",
+    )
+    parser.add_argument(
+        "--model-path",
+        default="models/energy_model.pkl",
+        help="Path to save/load the trained energy model",
+    )
+    parser.add_argument(
+        "--eval-out",
+        default=None,
+        help="Optional path to write evaluation JSON (default: <out>/model/energy_eval.json)",
+    )
+    parser.add_argument(
+        "--pred-out",
+        default="data/processed/daily_log_enriched_with_preds.csv",
+        help="Output CSV path for enriched data with energy predictions",
+    )
+
     args = parser.parse_args()
 
     # Guard: dump-raw is only valid for Sheets input
@@ -117,6 +147,63 @@ def main() -> None:
         print(f"- Input:   {out_path}")
         print(f"- Out dir: {out_dir}")
         print(f"- Summary: {summary_path}")
+        return
+
+    # ✅ v3: train-model stage (train + eval from existing enriched CSV)
+    if args.stage == "train-model":
+        if not out_path.exists():
+            raise SystemExit(f"Processed CSV not found for train-model stage: {out_path}")
+
+        from paos.machine_learning.cli import train_and_evaluate_from_enriched_csv
+
+        model_path = Path(args.model_path)
+        eval_out = Path(args.eval_out) if args.eval_out else (out_dir / "model" / "energy_eval.json")
+
+        result = train_and_evaluate_from_enriched_csv(
+            enriched_csv_path=out_path,
+            model_out_path=model_path,
+            eval_out_path=eval_out,
+            model_type=args.model_type,
+            test_size=args.test_size,
+        )
+
+        print("PAOS train-model complete")
+        print(f"- Input:      {out_path}")
+        print(f"- Model:      {model_path}")
+        print(f"- Eval JSON:  {eval_out}")
+        print(f"- MAE/RMSE:   {float(result.get('mae')):.3f} / {float(result.get('rmse')):.3f}")
+        print(
+            f"- Baseline:   {float(result.get('baseline_mae')):.3f} / {float(result.get('baseline_rmse')):.3f}"
+        )
+        return
+
+    # ✅ v3: predict-energy stage (write energy_focus_pred into a new CSV)
+    if args.stage == "predict-energy":
+        if not out_path.exists():
+            raise SystemExit(f"Processed CSV not found for predict-energy stage: {out_path}")
+
+        model_path = Path(args.model_path)
+        if not model_path.exists():
+            raise SystemExit(
+                f"Model not found: {model_path}\n"
+                "Run: python scripts/paos_run.py train-model --processed <enriched.csv> --model-path <path>"
+            )
+
+        from paos.machine_learning.cli import predict_energy_into_csv
+
+        pred_out = Path(args.pred_out)
+
+        predict_energy_into_csv(
+            enriched_csv_path=out_path,
+            model_path=model_path,
+            out_csv_path=pred_out,
+            pred_col="energy_focus_pred",
+        )
+
+        print("PAOS predict-energy complete")
+        print(f"- Input:    {out_path}")
+        print(f"- Model:    {model_path}")
+        print(f"- Output:   {pred_out}")
         return
 
     # --- Ingest (unified) ---
