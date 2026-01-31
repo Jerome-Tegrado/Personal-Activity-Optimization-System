@@ -346,3 +346,54 @@ def test_runner_version_flag() -> None:
     combined = (result.stdout + result.stderr).strip().lower()
     assert "paos-run" in combined
     assert "unknown" not in combined
+
+def test_report_stage_can_include_experiments_when_flag_provided(tmp_path: Path) -> None:
+    # Create an enriched CSV that includes the columns used by:
+    # - summary (date/activity_level/energy_focus/did_exercise/lifestyle_status)
+    # - export_figures (requires steps in your current viz pipeline)
+    enriched_path = tmp_path / "daily_log_enriched.csv"
+    enriched_path.write_text(
+        "date,steps,activity_level,energy_focus,did_exercise,lifestyle_status\n"
+        "2026-01-14,8000,40,2,Yes,Sedentary\n"
+        "2026-01-15,8500,45,3,Yes,Sedentary\n"
+        "2026-01-16,10000,60,4,Yes,Sedentary\n"
+        "2026-01-17,11000,65,5,Yes,Sedentary\n",
+        encoding="utf-8",
+    )
+
+    spec_path = tmp_path / "experiments.csv"
+    spec_path.write_text(
+        "\n".join(
+            [
+                "experiment,start_date,end_date,phase,label",
+                "e,2026-01-14,2026-01-15,control,baseline",
+                "e,2026-01-16,2026-01-17,treatment,test",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    out_dir = tmp_path / "reports"
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "scripts/paos_run.py",
+            "report",
+            "--processed",
+            str(enriched_path),
+            "--out",
+            str(out_dir),
+            "--experiments-spec",
+            str(spec_path),
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, f"STDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
+
+    summary = (out_dir / "summary.md").read_text(encoding="utf-8")
+    assert "## Experiments" in summary
+    assert "### e" in summary
+

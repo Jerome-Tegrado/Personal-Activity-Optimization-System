@@ -75,6 +75,13 @@ def main() -> None:
         help="Output folder for reports (summary + figures)",
     )
 
+    # NEW: experiment spec path (opt-in experiments section)
+    parser.add_argument(
+        "--experiments-spec",
+        default=None,
+        help="Path to experiments CSV spec. If omitted, no Experiments section is included.",
+    )
+
     # v3 Machine Learning options (Section 1)
     parser.add_argument(
         "--model-type",
@@ -140,7 +147,7 @@ def main() -> None:
         df_enriched = pd.read_csv(out_path)
 
         summary_path = out_dir / "summary.md"
-        write_weekly_summary(df_enriched, summary_path)
+        write_weekly_summary(df_enriched, summary_path, experiments_spec=args.experiments_spec)
         export_figures(df_enriched, out_dir)
 
         print("PAOS report complete")
@@ -268,7 +275,7 @@ def main() -> None:
 
     # --- Summary + figures ---
     summary_path = out_dir / "summary.md"
-    write_weekly_summary(df_enriched, summary_path)
+    write_weekly_summary(df_enriched, summary_path, experiments_spec=args.experiments_spec)
     export_figures(df_enriched, out_dir)
 
     print("PAOS run complete")

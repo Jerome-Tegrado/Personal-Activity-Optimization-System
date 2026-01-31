@@ -51,6 +51,7 @@ def test_build_cmd_csv_includes_input_out_and_processed(tmp_path: Path) -> None:
         sheet_range = ""
         dump_raw = False
         raw_out = None
+        experiments_spec = None
 
     cmd = wr._build_paos_run_cmd(Args, paths)
 
@@ -59,6 +60,26 @@ def test_build_cmd_csv_includes_input_out_and_processed(tmp_path: Path) -> None:
     assert "--input" in cmd and str(Args.input) in cmd
     assert "--out" in cmd and str(paths.out_dir) in cmd
     assert "--processed" in cmd and str(paths.processed_csv) in cmd
+
+
+def test_build_cmd_csv_includes_experiments_spec_when_provided(tmp_path: Path) -> None:
+    out_root = tmp_path / "out"
+    processed_root = tmp_path / "processed"
+    paths = wr._week_paths(out_root, processed_root, date(2026, 1, 20))
+
+    class Args:
+        input_type = "csv"
+        input = tmp_path / "in.csv"
+        sheet_id = ""
+        sheet_range = ""
+        dump_raw = False
+        raw_out = None
+        experiments_spec = tmp_path / "experiments.csv"
+
+    cmd = wr._build_paos_run_cmd(Args, paths)
+
+    assert "--experiments-spec" in cmd
+    assert str(Args.experiments_spec) in cmd
 
 
 def test_build_cmd_sheets_includes_optional_sheet_args(tmp_path: Path) -> None:
@@ -73,6 +94,7 @@ def test_build_cmd_sheets_includes_optional_sheet_args(tmp_path: Path) -> None:
         sheet_range = "Form Responses 1!A1:J"
         dump_raw = True
         raw_out = tmp_path / "raw.csv"
+        experiments_spec = None
 
     cmd = wr._build_paos_run_cmd(Args, paths)
 

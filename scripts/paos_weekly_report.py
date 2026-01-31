@@ -47,6 +47,9 @@ def _build_paos_run_cmd(args: argparse.Namespace, paths: WeeklyPaths) -> list[st
         str(paths.processed_csv),
     ]
 
+    if args.experiments_spec:
+        cmd += ["--experiments-spec", str(args.experiments_spec)]
+
     if args.input_type == "csv":
         cmd += ["--input", str(args.input)]
     else:
@@ -115,6 +118,13 @@ def main() -> int:
         type=Path,
         default=Path("data") / "processed" / "weekly",
         help="Root processed folder. A YYYY-Www folder will be created inside.",
+    )
+
+    parser.add_argument(
+        "--experiments-spec",
+        type=Path,
+        default=None,
+        help="Path to experiments CSV spec. If omitted, no Experiments section is included.",
     )
 
     # Optional: passthrough debug flags for Sheets
