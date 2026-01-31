@@ -153,10 +153,24 @@ def main() -> int:
     if not args.quiet:
         print("Running:", " ".join(cmd))
 
-    result = subprocess.run(cmd, check=False)
+    # Capture output only when quiet, but always surface it on failures.
+    if args.quiet:
+        result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+    else:
+        result = subprocess.run(cmd, check=False)
 
     if result.returncode != 0:
         print(f"Weekly report failed (exit={result.returncode})")
+
+        # If we captured output, print it to help debugging in CI/tests.
+        if args.quiet:
+            if result.stdout:
+                print("STDOUT:")
+                print(result.stdout)
+            if result.stderr:
+                print("STDERR:")
+                print(result.stderr)
+
         return result.returncode
 
     if not args.quiet:
