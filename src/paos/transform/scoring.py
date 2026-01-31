@@ -3,6 +3,7 @@ from __future__ import annotations
 import pandas as pd
 
 from paos.config import DURATION_BANDS, HR_MULTIPLIERS, STATUS_BANDS, STEP_BANDS
+from paos.transform.hr_zone_infer import infer_missing_heart_rate_zone
 from paos.transform.recommendations import recommend_series
 
 
@@ -55,6 +56,9 @@ def enrich(df: pd.DataFrame) -> pd.DataFrame:
     for col in ["exercise_type", "exercise_minutes", "heart_rate_zone", "notes"]:
         if col not in out.columns:
             out[col] = pd.NA
+
+    # v3 Section 2 Step 2: infer heart_rate_zone if missing on exercise days
+    out = infer_missing_heart_rate_zone(out)
 
     out["step_points"] = out["steps"].apply(score_steps)
 
