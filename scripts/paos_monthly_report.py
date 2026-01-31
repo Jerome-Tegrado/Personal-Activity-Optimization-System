@@ -38,7 +38,11 @@ def _month_paths(out_root: Path, processed_root: Path, today: date) -> MonthlyPa
     return MonthlyPaths(out_dir=out_dir, processed_csv=processed_csv, month_label=month_label)
 
 
-def _build_paos_run_cmd(args: argparse.Namespace, paths: MonthlyPaths) -> list[str]:
+def _build_paos_transform_cmd(args: argparse.Namespace, paths: MonthlyPaths) -> list[str]:
+    """
+    Build the subprocess command to run the PAOS pipeline into month-stamped folders.
+    Uses paos_run.py all so you get enriched csv + figures + weekly summary (if paos_run writes it).
+    """
     cmd = [
         sys.executable,
         "scripts/paos_run.py",
@@ -65,6 +69,11 @@ def _build_paos_run_cmd(args: argparse.Namespace, paths: MonthlyPaths) -> list[s
                 cmd += ["--raw-out", str(args.raw_out)]
 
     return cmd
+
+
+# Back-compat for tests / older references
+def _build_paos_run_cmd(args: argparse.Namespace, paths: MonthlyPaths) -> list[str]:
+    return _build_paos_transform_cmd(args, paths)
 
 
 def main() -> int:
@@ -151,16 +160,37 @@ def main() -> int:
         parser.error("--raw-out requires --dump-raw")
 
     paths = _month_paths(args.out_root, args.processed_root, args.today)
-    cmd = _build_paos_run_cmd(args, paths)
+    cmd = _build_paos_transform_cmd(args, paths)
 
-    if not args.quiet:
+    # Quiet mode: capture output, only show on failure
+    if args.quiet:
+        result = subprocess.run(cmd, check=False, capture_output=True, text=True)
+    else:
         print("Running:", " ".join(cmd))
-
-    result = subprocess.run(cmd, check=False)
+        result = subprocess.run(cmd, check=False)
 
     if result.returncode != 0:
+        if args.quiet:
+            sys.stderr.write(result.stdout or "")
+            sys.stderr.write(result.stderr or "")
         print(f"Monthly report failed (exit={result.returncode})")
         return result.returncode
+
+    # Write monthly summary (new)
+    try:
+        import pandas as pd
+        from paos.analysis.summary import write_monthly_summary
+    except Exception as e:
+        print(f"Monthly report complete (summary skipped: {e})")
+        return 0
+
+    # Read enriched CSV then write month summary.md into out_dir
+    if paths.processed_csv.exists():
+        df_enriched = pd.read_csv(paths.processed_csv)
+        summary_path = paths.out_dir / "summary.md"
+
+        # ✅ FIX #1: correct parameter name (month=)
+        write_monthly_summary(df_enriched, summary_path, month=paths.month_label)
 
     if not args.quiet:
         print("Monthly report complete")

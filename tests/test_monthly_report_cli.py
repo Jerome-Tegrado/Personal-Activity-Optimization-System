@@ -43,3 +43,6 @@ def test_monthly_report_script_csv_smoke(tmp_path: Path) -> None:
 
     enriched_csv = processed_root / "2026-01" / "daily_log_enriched.csv"
     assert enriched_csv.exists()
+
+    summary_md = month_dir / "summary.md"
+    assert summary_md.exists()

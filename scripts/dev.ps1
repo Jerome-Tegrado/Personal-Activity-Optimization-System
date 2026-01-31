@@ -61,6 +61,7 @@ if ($Task -eq "monthly") {
   }
 
   python scripts\paos_monthly_report.py `
+    --quiet `
     --input-type csv `
     --input data\sample\daily_log.csv `
     --today $Today `
@@ -68,3 +69,4 @@ if ($Task -eq "monthly") {
     --processed-root data\processed\monthly
   exit 0
 }
+
