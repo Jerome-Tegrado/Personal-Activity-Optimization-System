@@ -30,6 +30,9 @@ data/processed/weekly/
 # Monthly report outputs (generated)
 reports_demo/monthly/
 
+# Demo figures (generated)
+reports_demo/figures/
+
 # BUT keep the demo folders visible in the repo
 !reports_demo/weekly/.gitkeep
 !reports_demo/monthly/.gitkeep
