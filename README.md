@@ -71,6 +71,9 @@ If you're on Windows/PowerShell, you can use the helper script:
 
 # run demo on synthetic sample data (writes to reports_demo/)
 .\scripts\dev.ps1 demo
+
+# generate a weekly report (writes to reports_demo/weekly and data/processed/weekly)
+.\scripts\dev.ps1 weekly
 ```
 
 ---
