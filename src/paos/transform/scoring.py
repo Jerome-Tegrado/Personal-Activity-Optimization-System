@@ -3,7 +3,7 @@ from __future__ import annotations
 import pandas as pd
 
 from paos.config import DURATION_BANDS, HR_MULTIPLIERS, STATUS_BANDS, STEP_BANDS
-from paos.transform.recommendations import recommend
+from paos.transform.recommendations import recommend_series
 
 
 def score_steps(steps: float) -> int:
@@ -70,14 +70,7 @@ def enrich(df: pd.DataFrame) -> pd.DataFrame:
     out["activity_level"] = (out["step_points"] + out["exercise_points"]).clip(0, 100).astype(int)
     out["lifestyle_status"] = out["activity_level"].apply(classify_status)
 
-    # V2 recommendations: activity_level + energy_focus (if present)
-    energy_col_exists = "energy_focus" in out.columns
-    out["recommendation"] = out.apply(
-        lambda r: recommend(
-            r.get("activity_level"),
-            r.get("energy_focus") if energy_col_exists else None,
-        ),
-        axis=1,
-    )
+    # V2 trend-aware recommendations (includes 3-day downtrend rule)
+    out["recommendation"] = recommend_series(out)
 
     return out
