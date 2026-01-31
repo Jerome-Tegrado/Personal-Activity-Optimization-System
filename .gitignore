@@ -2,7 +2,7 @@
 .venv/
 __pycache__/
 *.pyc
-.pytest_cache/          # <-- added
+.pytest_cache/
 
 # OS
 Thumbs.db
@@ -29,6 +29,10 @@ data/processed/weekly/
 
 # Monthly report outputs (generated)
 reports_demo/monthly/
+
+# BUT keep the demo folders visible in the repo
+!reports_demo/weekly/.gitkeep
+!reports_demo/monthly/.gitkeep
 
 # authentication and sensitive data
 secrets/
