@@ -8,14 +8,7 @@ import pandas as pd
 
 
 def test_paos_run_report_supports_experiments_spec(tmp_path: Path):
-    """
-    End-to-end smoke test:
-    - writes a small enriched CSV
-    - writes an experiments spec CSV
-    - runs: python scripts/paos_run.py report --processed ... --out ... --experiments-spec ...
-    - asserts summary.md contains the Experiments section
-    """
-    # --- Arrange: experiment spec (control then treatment) ---
+    # --- experiments spec (control then treatment) ---
     spec_path = tmp_path / "experiments.csv"
     spec_path.write_text(
         "\n".join(
@@ -28,8 +21,7 @@ def test_paos_run_report_supports_experiments_spec(tmp_path: Path):
         encoding="utf-8",
     )
 
-    # --- Arrange: enriched CSV input for report stage ---
-    # Needs at least: date, activity_level, energy_focus, did_exercise, lifestyle_status
+    # --- enriched CSV (input for report stage) ---
     df = pd.DataFrame(
         {
             "date": pd.date_range("2026-01-01", periods=7, freq="D").astype(str),
@@ -47,7 +39,6 @@ def test_paos_run_report_supports_experiments_spec(tmp_path: Path):
     out_dir = tmp_path / "out"
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    # --- Act ---
     cmd = [
         sys.executable,
         "scripts/paos_run.py",
@@ -58,12 +49,14 @@ def test_paos_run_report_supports_experiments_spec(tmp_path: Path):
         str(out_dir),
         "--experiments-spec",
         str(spec_path),
+        "--no-figures",
     ]
 
     result = subprocess.run(cmd, capture_output=True, text=True, check=False)
-    assert result.returncode == 0, f"paos_run.py failed\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
+    assert result.returncode == 0, (
+        f"paos_run.py failed\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
+    )
 
-    # --- Assert ---
     summary_path = out_dir / "summary.md"
     assert summary_path.exists()
 

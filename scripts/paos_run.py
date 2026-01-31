@@ -82,6 +82,13 @@ def main() -> None:
         help="Path to experiments CSV spec. If omitted, no Experiments section is included.",
     )
 
+    # ✅ NEW: allow skipping figures (useful for CI/tests)
+    parser.add_argument(
+        "--no-figures",
+        action="store_true",
+        help="Skip figure generation (faster + more reliable in CI).",
+    )
+
     # v3 Machine Learning options (Section 1)
     parser.add_argument(
         "--model-type",
@@ -148,12 +155,16 @@ def main() -> None:
 
         summary_path = out_dir / "summary.md"
         write_weekly_summary(df_enriched, summary_path, experiments_spec=args.experiments_spec)
-        export_figures(df_enriched, out_dir)
+
+        if not args.no_figures:
+            export_figures(df_enriched, out_dir)
 
         print("PAOS report complete")
         print(f"- Input:   {out_path}")
         print(f"- Out dir: {out_dir}")
         print(f"- Summary: {summary_path}")
+        if args.no_figures:
+            print("- Figures: skipped (--no-figures)")
         return
 
     # ✅ v3: train-model stage (train + eval from existing enriched CSV)
@@ -276,13 +287,18 @@ def main() -> None:
     # --- Summary + figures ---
     summary_path = out_dir / "summary.md"
     write_weekly_summary(df_enriched, summary_path, experiments_spec=args.experiments_spec)
-    export_figures(df_enriched, out_dir)
+
+    if not args.no_figures:
+        export_figures(df_enriched, out_dir)
 
     print("PAOS run complete")
     print(f"- Input:   {input_label}")
     print(f"- Output:  {out_path}")
     print(f"- Out dir: {out_dir}")
     print(f"- Summary: {summary_path}")
+
+    if args.no_figures:
+        print("- Figures: skipped (--no-figures)")
 
     if args.input_type == "sheets" and args.dump_raw:
         print(f"- Raw:     {args.raw_out}")
