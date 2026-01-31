@@ -130,7 +130,6 @@ def main() -> int:
         help="(Sheets only) Output path for raw snapshot (requires --dump-raw).",
     )
 
-    # Polish: quieter output for tests/CI when desired
     parser.add_argument(
         "--quiet",
         action="store_true",
