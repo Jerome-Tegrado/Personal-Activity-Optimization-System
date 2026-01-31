@@ -27,6 +27,9 @@ reports_demo/weekly_smoke/
 reports/weekly/
 data/processed/weekly/
 
+# Monthly report outputs (generated)
+reports_demo/monthly/
+
 # authentication and sensitive data
 secrets/
 credentials.json
