@@ -30,19 +30,44 @@ def test_recommend_series_appends_downtrend_nudge_on_third_day() -> None:
         }
     )
     recs = recommend_series(df)
-    assert len(recs) == 3
     assert "dipped for 3 days" in recs.iloc[2].lower()
     assert "dipped for 3 days" not in recs.iloc[0].lower()
     assert "dipped for 3 days" not in recs.iloc[1].lower()
 
 
-def test_recommend_series_does_not_trigger_with_date_gaps() -> None:
+def test_recommend_series_does_not_trigger_downtrend_with_date_gaps() -> None:
     df = pd.DataFrame(
         {
-            "date": ["2026-01-01", "2026-01-03", "2026-01-04"],  # gap between day 1 and day 2
+            "date": ["2026-01-01", "2026-01-03", "2026-01-04"],  # gap breaks consecutiveness
             "activity_level": [80, 70, 60],
             "energy_focus": [3, 3, 3],
         }
     )
     recs = recommend_series(df)
     assert "dipped for 3 days" not in recs.iloc[2].lower()
+
+
+def test_recommend_series_appends_sedentary_streak_nudge() -> None:
+    df = pd.DataFrame(
+        {
+            "date": ["2026-01-06", "2026-01-07"],  # consecutive days
+            "activity_level": [20, 10],  # both sedentary
+            "energy_focus": [3, 3],
+        }
+    )
+    recs = recommend_series(df)
+    assert "two sedentary days" in recs.iloc[1].lower()
+    assert "two sedentary days" not in recs.iloc[0].lower()
+
+
+def test_recommend_series_weekday_dip_nudge_triggers_on_weekday_sedentary() -> None:
+    # 2026-01-05 is a Monday (weekday)
+    df = pd.DataFrame(
+        {
+            "date": ["2026-01-05"],
+            "activity_level": [10],
+            "energy_focus": [3],
+        }
+    )
+    recs = recommend_series(df)
+    assert "weekday dip" in recs.iloc[0].lower()

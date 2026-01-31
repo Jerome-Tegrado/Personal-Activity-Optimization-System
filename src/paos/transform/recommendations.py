@@ -6,6 +6,12 @@ from typing import Optional
 import pandas as pd
 
 
+# ---- Thresholds / bands (easy to tweak later) ----
+SEDENTARY_MAX = 25
+HIGH_ACTIVITY_MIN = 70
+LOW_ENERGY_MAX = 2
+
+
 def _is_missing(x: object) -> bool:
     try:
         return x is None or (isinstance(x, float) and math.isnan(x))
@@ -34,10 +40,10 @@ def base_recommendation(activity_level: Optional[float]) -> str:
 
 def recommend(activity_level: Optional[float], energy_focus: Optional[float]) -> str:
     """
-    Returns a daily recommendation string.
+    Single-day recommendation logic.
 
-    V2 trend-aware rule #1 (small MVP):
-    - High activity + low energy => recovery check.
+    Rule #1:
+      - High activity + low energy => recovery nudge.
     """
     msg = base_recommendation(activity_level)
 
@@ -47,8 +53,7 @@ def recommend(activity_level: Optional[float], energy_focus: Optional[float]) ->
     level = float(activity_level)
     ef = float(energy_focus)
 
-    # Rule #1: high activity + low energy => recovery nudge
-    if level >= 70 and ef <= 2:
+    if level >= HIGH_ACTIVITY_MIN and ef <= LOW_ENERGY_MAX:
         msg += " High effort + low energy — prioritize recovery (sleep, hydration, lighter training)."
 
     return msg
@@ -56,29 +61,31 @@ def recommend(activity_level: Optional[float], energy_focus: Optional[float]) ->
 
 def recommend_series(df: pd.DataFrame) -> pd.Series:
     """
-    Generate recommendations for a whole dataframe, enabling simple trend rules.
+    Generate recommendations for a dataframe, enabling simple trend-aware rules.
 
     Required columns:
       - activity_level
     Optional columns:
       - energy_focus
+      - date  (if present, rules require *consecutive days* to avoid false triggers)
 
-    Trend-aware rule #2:
-      - If the last 3 *consecutive days* show a strict activity downtrend
-        (d-2 > d-1 > d), append a momentum nudge for day d.
+    Trend rules applied here:
+      Rule #2: strict 3-day consecutive downtrend in activity_level => momentum nudge
+      Rule #3: 2+ consecutive sedentary days (<= 25) => streak-break nudge
+      Rule #4: weekday dip (Mon–Fri sedentary) => scheduling nudge
     """
     if "activity_level" not in df.columns:
         raise ValueError("recommend_series requires an 'activity_level' column")
 
-    energy_col_exists = "energy_focus" in df.columns
-
     out = df.copy()
 
+    # Best effort sorting by date so "trend" means time order
     if "date" in out.columns:
-        # best effort sorting by date
         out = out.sort_values("date")
 
-    # Base recommendations row-by-row (rule #1 lives inside recommend())
+    energy_col_exists = "energy_focus" in out.columns
+
+    # Base per-row recommendations (Rule #1 lives inside recommend())
     recs = out.apply(
         lambda r: recommend(
             r.get("activity_level"),
@@ -87,19 +94,52 @@ def recommend_series(df: pd.DataFrame) -> pd.Series:
         axis=1,
     ).astype(str)
 
-    # Rule #2: 3-day downtrend in activity_level
     a = pd.to_numeric(out["activity_level"], errors="coerce")
 
-    # Strict downtrend across the last 3 rows (as ordered above)
-    downtrend_today = (a.shift(2) > a.shift(1)) & (a.shift(1) > a)
-
-    # If date exists, require consecutive days (no gaps) so we don't misfire
-    if "date" in out.columns:
+    has_date = "date" in out.columns
+    if has_date:
         d = pd.to_datetime(out["date"], errors="coerce")
-        consecutive = (d.diff() == pd.Timedelta(days=1)) & (d.diff().shift(1) == pd.Timedelta(days=1))
-        downtrend_today = downtrend_today & consecutive
+    else:
+        d = None
 
-    nudge = " Activity has dipped for 3 days — do a small reset (10–20 min walk) to rebuild momentum."
-    recs = recs.where(~downtrend_today, recs + nudge)
+    # Helper: consecutive-day mask for "today" and "yesterday"
+    if has_date:
+        # today is consecutive with yesterday
+        consec_1 = d.diff() == pd.Timedelta(days=1)
+        # today and yesterday are both consecutive (3-day window)
+        consec_2 = consec_1 & (d.diff().shift(1) == pd.Timedelta(days=1))
+    else:
+        consec_1 = pd.Series(True, index=out.index)
+        consec_2 = pd.Series(True, index=out.index)
+
+    # -------------------------
+    # Rule #2: 3-day downtrend
+    # -------------------------
+    downtrend_today = (a.shift(2) > a.shift(1)) & (a.shift(1) > a) & consec_2
+    downtrend_nudge = (
+        " Activity has dipped for 3 days — do a small reset (10–20 min walk) to rebuild momentum."
+    )
+    recs = recs.where(~downtrend_today, recs + downtrend_nudge)
+
+    # ----------------------------------------
+    # Rule #3: consecutive sedentary day streak
+    # ----------------------------------------
+    sedentary = a <= SEDENTARY_MAX
+    sedentary_streak = sedentary & sedentary.shift(1) & consec_1
+    streak_nudge = (
+        " Two sedentary days in a row — go for a tiny win today (10–15 min walk) to break the streak."
+    )
+    recs = recs.where(~sedentary_streak, recs + streak_nudge)
+
+    # -------------------------
+    # Rule #4: weekday dip nudge
+    # -------------------------
+    if has_date:
+        weekday = pd.to_datetime(out["date"], errors="coerce").dt.weekday  # Mon=0 .. Sun=6
+        weekday_sedentary = (weekday <= 4) & (a <= SEDENTARY_MAX)
+        weekday_nudge = (
+            " Weekday dip detected — schedule a short walk (10–20 min) during a fixed slot (lunch/after work)."
+        )
+        recs = recs.where(~weekday_sedentary, recs + weekday_nudge)
 
     return recs

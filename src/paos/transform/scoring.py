@@ -70,7 +70,7 @@ def enrich(df: pd.DataFrame) -> pd.DataFrame:
     out["activity_level"] = (out["step_points"] + out["exercise_points"]).clip(0, 100).astype(int)
     out["lifestyle_status"] = out["activity_level"].apply(classify_status)
 
-    # V2 trend-aware recommendations (includes 3-day downtrend rule)
+    # Trend-aware recommendations (date-ordered when available)
     out["recommendation"] = recommend_series(out)
 
     return out
