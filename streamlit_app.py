@@ -33,6 +33,91 @@ def _load_uploaded_cached(file_bytes: bytes) -> pd.DataFrame:
     return load_enriched_csv(BytesIO(file_bytes))
 
 
+@st.cache_data
+def _filter_cached(
+    df: pd.DataFrame, start: pd.Timestamp | None, end: pd.Timestamp | None
+) -> pd.DataFrame:
+    # Cached wrapper around the existing helper.
+    # Note: df is hashable for Streamlit cache, but can be large; this is still a net win
+    # for typical dashboard usage. If it ever becomes too heavy, we can cache on a smaller
+    # signature later (e.g., df hash + dates).
+    return filter_by_date_range(df, start=start, end=end, col="date")
+
+
+@st.cache_data
+def _weekly_activity_trend(df: pd.DataFrame) -> pd.DataFrame:
+    base = df.dropna(subset=["date", "activity_level"]).sort_values("date")
+    return (
+        base.set_index("date")["activity_level"]
+        .resample("W")
+        .mean()
+        .reset_index()
+    )
+
+
+@st.cache_data
+def _weekly_status_counts(df: pd.DataFrame) -> pd.DataFrame:
+    base = df.dropna(subset=["date", "activity_level"]).sort_values("date")
+    weekly = (
+        base.set_index("date")["activity_level"]
+        .resample("W")
+        .mean()
+        .reset_index()
+    )
+    weekly["lifestyle_status"] = weekly["activity_level"].apply(_status_from_activity_level)
+    counts = weekly["lifestyle_status"].value_counts().reset_index()
+    counts.columns = ["lifestyle_status", "weeks"]
+    return counts
+
+
+@st.cache_data
+def _weekly_hr_zone(
+    df: pd.DataFrame, metric: str
+) -> pd.DataFrame:
+    # Produces weekly HR zone breakdown for exercised rows.
+    # metric: "days" or "minutes"
+    if metric not in {"days", "minutes"}:
+        raise ValueError("metric must be 'days' or 'minutes'")
+
+    base = df.dropna(subset=["date"]).copy()
+
+    did = base["did_exercise"].astype(str).str.strip().str.lower()
+    base = base[did == "yes"]
+
+    base["heart_rate_zone"] = (
+        base["heart_rate_zone"]
+        .astype(str)
+        .str.strip()
+        .str.lower()
+        .replace({"nan": "unknown", "none": "unknown", "": "unknown"})
+    )
+
+    base = base.set_index("date")
+
+    if metric == "days":
+        weekly_zone = (
+            base.groupby([pd.Grouper(freq="W"), "heart_rate_zone"])
+            .size()
+            .reset_index(name="value")
+        )
+    else:
+        base["exercise_minutes"] = pd.to_numeric(
+            base.get("exercise_minutes"), errors="coerce"
+        ).fillna(0)
+        weekly_zone = (
+            base.groupby([pd.Grouper(freq="W"), "heart_rate_zone"])["exercise_minutes"]
+            .sum()
+            .reset_index(name="value")
+        )
+
+    weekly_zone["heart_rate_zone"] = pd.Categorical(
+        weekly_zone["heart_rate_zone"],
+        categories=["light", "moderate", "intense", "peak", "unknown"],
+        ordered=True,
+    )
+    return weekly_zone
+
+
 def _status_from_activity_level(level: float) -> str:
     if level <= 25:
         return "Sedentary"
@@ -173,7 +258,8 @@ def main() -> None:
 
         start_ts = pd.Timestamp(start) if start else None
         end_ts = pd.Timestamp(end) if end else None
-        filtered = filter_by_date_range(filtered, start=start_ts, end=end_ts, col="date")
+
+        filtered = _filter_cached(filtered, start=start_ts, end=end_ts)
 
     if filtered.empty:
         st.info("No rows to show (empty dataset or date range filter returned 0 rows).")
@@ -247,12 +333,7 @@ def main() -> None:
         chart_df = filtered.dropna(subset=["date"]).sort_values("date")
 
         if trend_granularity == "Weekly":
-            weekly = (
-                chart_df.set_index("date")["activity_level"]
-                .resample("W")
-                .mean()
-                .reset_index()
-            )
+            weekly = _weekly_activity_trend(chart_df)
             fig = px.line(weekly, x="date", y="activity_level", markers=True)
         else:
             fig = px.line(chart_df, x="date", y="activity_level", markers=True)
@@ -301,18 +382,7 @@ def main() -> None:
             and "date" in filtered.columns
             and "activity_level" in filtered.columns
         ):
-            base = filtered.dropna(subset=["date", "activity_level"]).sort_values("date")
-            weekly2 = (
-                base.set_index("date")["activity_level"]
-                .resample("W")
-                .mean()
-                .reset_index()
-            )
-            weekly2["lifestyle_status"] = weekly2["activity_level"].apply(
-                _status_from_activity_level
-            )
-            counts = weekly2["lifestyle_status"].value_counts().reset_index()
-            counts.columns = ["lifestyle_status", "weeks"]
+            counts = _weekly_status_counts(filtered)
             fig3 = px.bar(
                 counts,
                 x="lifestyle_status",
@@ -369,46 +439,7 @@ def main() -> None:
             if "date" not in filtered.columns or filtered["date"].isna().all():
                 st.info("Weekly HR zone view needs a valid `date` column.")
             else:
-                base = filtered.dropna(subset=["date"]).copy()
-
-                # Keep only exercised rows (match helper intent)
-                did = base["did_exercise"].astype(str).str.strip().str.lower()
-                base = base[did == "yes"]
-
-                # Normalize zones (same normalization as helper)
-                base["heart_rate_zone"] = (
-                    base["heart_rate_zone"]
-                    .astype(str)
-                    .str.strip()
-                    .str.lower()
-                    .replace({"nan": "unknown", "none": "unknown", "": "unknown"})
-                )
-
-                base = base.set_index("date")
-
-                if metric == "days":
-                    weekly_zone = (
-                        base.groupby([pd.Grouper(freq="W"), "heart_rate_zone"])
-                        .size()
-                        .reset_index(name="value")
-                    )
-                else:
-                    base["exercise_minutes"] = pd.to_numeric(
-                        base.get("exercise_minutes"), errors="coerce"
-                    ).fillna(0)
-                    weekly_zone = (
-                        base.groupby([pd.Grouper(freq="W"), "heart_rate_zone"])["exercise_minutes"]
-                        .sum()
-                        .reset_index(name="value")
-                    )
-
-                # Ensure stable zone ordering in legend + display
-                weekly_zone["heart_rate_zone"] = pd.Categorical(
-                    weekly_zone["heart_rate_zone"],
-                    categories=["light", "moderate", "intense", "peak", "unknown"],
-                    ordered=True,
-                )
-
+                weekly_zone = _weekly_hr_zone(filtered, metric=metric)
                 fig_zone = px.bar(
                     weekly_zone,
                     x="date",
