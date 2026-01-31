@@ -45,6 +45,7 @@ if ($Task -eq "weekly") {
   }
 
   python scripts\paos_weekly_report.py `
+    --quiet `
     --input-type csv `
     --input data\sample\daily_log.csv `
     --today $Today `
