@@ -56,3 +56,36 @@ def test_build_cmd_csv_includes_input_out_and_processed(tmp_path: Path) -> None:
     assert "--input" in cmd and str(Args.input) in cmd
     assert "--out" in cmd and str(paths.out_dir) in cmd
     assert "--processed" in cmd and str(paths.processed_csv) in cmd
+
+
+def test_build_cmd_includes_experiments_spec_when_provided(tmp_path: Path) -> None:
+    out_root = tmp_path / "out"
+    processed_root = tmp_path / "processed"
+    paths = mr._month_paths(out_root, processed_root, date(2026, 1, 20))
+
+    spec_path = tmp_path / "experiments.csv"
+    spec_path.write_text(
+        "\n".join(
+            [
+                "experiment,start_date,end_date,phase,label",
+                "e,2026-01-01,2026-01-10,control,baseline",
+                "e,2026-01-11,2026-01-20,treatment,test",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    class Args:
+        input_type = "csv"
+        input = tmp_path / "in.csv"
+        sheet_id = ""
+        sheet_range = ""
+        dump_raw = False
+        raw_out = None
+        experiments_spec = spec_path
+
+    cmd = mr._build_paos_run_cmd(Args, paths)
+
+    assert "--experiments-spec" in cmd
+    idx = cmd.index("--experiments-spec")
+    assert cmd[idx + 1] == str(spec_path)
