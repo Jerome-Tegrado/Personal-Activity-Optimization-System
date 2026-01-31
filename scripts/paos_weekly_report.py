@@ -130,6 +130,13 @@ def main() -> int:
         help="(Sheets only) Output path for raw snapshot (requires --dump-raw).",
     )
 
+    # Polish: quieter output for tests/CI when desired
+    parser.add_argument(
+        "--quiet",
+        action="store_true",
+        help="Reduce output (useful for CI/tests).",
+    )
+
     args = parser.parse_args()
 
     if args.input_type == "csv" and args.input is None:
@@ -144,16 +151,20 @@ def main() -> int:
     paths = _week_paths(args.out_root, args.processed_root, args.today)
     cmd = _build_paos_run_cmd(args, paths)
 
-    print("Running:", " ".join(cmd))
+    if not args.quiet:
+        print("Running:", " ".join(cmd))
+
     result = subprocess.run(cmd, check=False)
 
     if result.returncode != 0:
         print(f"Weekly report failed (exit={result.returncode})")
         return result.returncode
 
-    print(f"Weekly report complete ✅")
-    print(f"- Out dir: {paths.out_dir}")
-    print(f"- Enriched CSV: {paths.processed_csv}")
+    if not args.quiet:
+        print("Weekly report complete")
+        print(f"- Out dir: {paths.out_dir}")
+        print(f"- Enriched CSV: {paths.processed_csv}")
+
     return 0
 
 

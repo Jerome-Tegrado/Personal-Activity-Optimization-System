@@ -24,6 +24,7 @@ def test_weekly_report_script_csv_smoke(tmp_path: Path) -> None:
     cmd = [
         sys.executable,
         "scripts/paos_weekly_report.py",
+        "--quiet",
         "--input-type",
         "csv",
         "--input",
