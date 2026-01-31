@@ -3,6 +3,7 @@ from __future__ import annotations
 import pandas as pd
 
 from paos.config import DURATION_BANDS, HR_MULTIPLIERS, STATUS_BANDS, STEP_BANDS
+from paos.transform.recommendations import recommend
 
 
 def score_steps(steps: float) -> int:
@@ -47,18 +48,6 @@ def classify_status(activity_level: int) -> str:
     return "Unknown"
 
 
-def recommend(status: str) -> str:
-    if status == "Sedentary":
-        return "Add a 20–30 min walk to increase activity and energy."
-    if status == "Lightly Active":
-        return "Include a moderate session to reach Active status."
-    if status == "Active":
-        return "Maintain routine; add variety (strength/mobility) to avoid plateaus."
-    if status == "Very Active":
-        return "Excellent—prioritize recovery (sleep, hydration)."
-    return "Log today and aim for consistency."
-
-
 def enrich(df: pd.DataFrame) -> pd.DataFrame:
     out = df.copy()
 
@@ -80,6 +69,15 @@ def enrich(df: pd.DataFrame) -> pd.DataFrame:
 
     out["activity_level"] = (out["step_points"] + out["exercise_points"]).clip(0, 100).astype(int)
     out["lifestyle_status"] = out["activity_level"].apply(classify_status)
-    out["recommendation"] = out["lifestyle_status"].apply(recommend)
+
+    # V2 recommendations: activity_level + energy_focus (if present)
+    energy_col_exists = "energy_focus" in out.columns
+    out["recommendation"] = out.apply(
+        lambda r: recommend(
+            r.get("activity_level"),
+            r.get("energy_focus") if energy_col_exists else None,
+        ),
+        axis=1,
+    )
 
     return out
