@@ -1,0 +1,2 @@
+metric,group,unit,p25,p50,p75,p90,source
+steps,adult,steps/day,5000,7000,9000,11000,template-only-replace-with-real-source
