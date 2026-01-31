@@ -71,3 +71,31 @@ def test_recommend_series_weekday_dip_nudge_triggers_on_weekday_sedentary() -> N
     )
     recs = recommend_series(df)
     assert "weekday dip" in recs.iloc[0].lower()
+
+def test_recommend_series_sorts_by_date_for_trend_rules() -> None:
+    # Same 3-day downtrend as earlier test, but shuffled order.
+    df = pd.DataFrame(
+        {
+            "date": ["2026-01-03", "2026-01-01", "2026-01-02"],
+            "activity_level": [60, 80, 70],
+            "energy_focus": [3, 3, 3],
+        }
+    )
+    recs = recommend_series(df)
+
+    # recommend_series sorts by date internally, so the downtrend should still be applied
+    # to the 3rd chronological day (2026-01-03). After sorting, that is the last row.
+    assert "dipped for 3 days" in recs.iloc[-1].lower()
+
+
+def test_recommend_series_weekday_dip_does_not_trigger_on_weekend() -> None:
+    # 2026-01-10 is a Saturday
+    df = pd.DataFrame(
+        {
+            "date": ["2026-01-10"],
+            "activity_level": [10],
+            "energy_focus": [3],
+        }
+    )
+    recs = recommend_series(df)
+    assert "weekday dip" not in recs.iloc[0].lower()
