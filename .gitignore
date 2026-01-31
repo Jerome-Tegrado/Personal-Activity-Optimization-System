@@ -21,9 +21,11 @@ dist/
 # ignore all reports by default
 reports/
 
-# public demo outputs (safe to commit)
-!reports_demo/          # <-- added
-!reports_demo/**        # <-- added
+# Weekly report outputs (generated)
+reports_demo/weekly/
+reports_demo/weekly_smoke/
+reports/weekly/
+data/processed/weekly/
 
 # authentication and sensitive data
 secrets/
