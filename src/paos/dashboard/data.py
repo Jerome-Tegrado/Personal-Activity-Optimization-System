@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import IO, Any
 
 import pandas as pd
 
@@ -26,9 +27,19 @@ class DashboardDataConfig:
             object.__setattr__(self, "required_columns", list(DEFAULT_REQUIRED_COLUMNS))
 
 
-def load_enriched_csv(path: str | Path) -> pd.DataFrame:
-    """Load the enriched CSV the dashboard reads."""
-    path = Path(path)
+def load_enriched_csv(path_or_file: str | Path | IO[Any]) -> pd.DataFrame:
+    """
+    Load the enriched CSV the dashboard reads.
+
+    Supports:
+      - str / Path (filesystem path)
+      - file-like objects (e.g., io.BytesIO from Streamlit uploader)
+    """
+    # File-like object
+    if hasattr(path_or_file, "read"):
+        return pd.read_csv(path_or_file)
+
+    path = Path(path_or_file)
     if not path.exists():
         raise FileNotFoundError(f"Enriched CSV not found: {path}")
     return pd.read_csv(path)
@@ -44,7 +55,8 @@ def validate_required_columns(df: pd.DataFrame, required: list[str]) -> None:
 def coerce_date_column(df: pd.DataFrame, col: str = "date") -> pd.DataFrame:
     """Parse df[col] into datetime; invalid values become NaT."""
     out = df.copy()
-    out[col] = pd.to_datetime(out[col], errors="coerce")
+    if col in out.columns:
+        out[col] = pd.to_datetime(out[col], errors="coerce")
     return out
 
 
@@ -56,6 +68,8 @@ def filter_by_date_range(
 ) -> pd.DataFrame:
     """Inclusive date filtering."""
     out = df
+    if col not in out.columns:
+        return out
     if start is not None:
         out = out[out[col] >= start]
     if end is not None:
@@ -74,8 +88,8 @@ def hr_zone_breakdown(df: pd.DataFrame, metric: str = "days") -> pd.DataFrame:
     if metric not in {"days", "minutes"}:
         raise ValueError("metric must be 'days' or 'minutes'")
 
-    # Always return the same categories in the same order
-    if df.empty:
+    # Always return stable categories
+    if df is None or df.empty:
         out = pd.DataFrame({"heart_rate_zone": HR_ZONE_ORDER, "value": [0] * len(HR_ZONE_ORDER)})
         out["heart_rate_zone"] = pd.Categorical(
             out["heart_rate_zone"], categories=HR_ZONE_ORDER, ordered=True
@@ -84,11 +98,18 @@ def hr_zone_breakdown(df: pd.DataFrame, metric: str = "days") -> pd.DataFrame:
 
     dfx = df.copy()
 
-    # Keep only rows where exercise happened
+    if "did_exercise" not in dfx.columns or "heart_rate_zone" not in dfx.columns:
+        out = pd.DataFrame({"heart_rate_zone": HR_ZONE_ORDER, "value": [0] * len(HR_ZONE_ORDER)})
+        out["heart_rate_zone"] = pd.Categorical(
+            out["heart_rate_zone"], categories=HR_ZONE_ORDER, ordered=True
+        )
+        return out
+
+    # Keep only exercised rows
     did = dfx["did_exercise"].astype(str).str.strip().str.lower()
     dfx = dfx[did == "yes"]
 
-    # Normalize zones (blank/NaN -> unknown)
+    # Normalize zones
     dfx["heart_rate_zone"] = (
         dfx["heart_rate_zone"]
         .astype(str)
@@ -103,7 +124,6 @@ def hr_zone_breakdown(df: pd.DataFrame, metric: str = "days") -> pd.DataFrame:
         mins = pd.to_numeric(dfx.get("exercise_minutes"), errors="coerce").fillna(0)
         s = mins.groupby(dfx["heart_rate_zone"]).sum()
 
-    # Stable order + include missing zones as 0
     s = s.reindex(HR_ZONE_ORDER, fill_value=0)
 
     out = s.reset_index()
