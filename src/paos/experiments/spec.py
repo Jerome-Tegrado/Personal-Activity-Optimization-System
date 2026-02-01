@@ -14,6 +14,7 @@ class ExperimentSpec:
 
     Dates are inclusive: start_date <= day <= end_date.
     """
+
     experiment: str
     start_date: pd.Timestamp
     end_date: pd.Timestamp

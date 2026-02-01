@@ -80,7 +80,9 @@ def _build_paos_run_cmd(args: argparse.Namespace, paths: WeeklyPaths) -> list[st
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Generate a weekly PAOS report by running the PAOS runner into a week-stamped folder."
+        description=(
+            "Generate a weekly PAOS report by running the PAOS runner into a week-stamped folder."
+        )
     )
 
     parser.add_argument(
@@ -157,7 +159,10 @@ def main() -> int:
     parser.add_argument(
         "--dump-raw",
         action="store_true",
-        help="(Sheets only) Dump raw Sheets snapshot before cleaning (passes through to paos_run.py).",
+        help=(
+            "(Sheets only) Dump raw Sheets snapshot before cleaning "
+            "(passes through to paos_run.py)."
+        ),
     )
     parser.add_argument(
         "--raw-out",

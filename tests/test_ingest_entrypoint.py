@@ -16,6 +16,7 @@ def test_load_daily_log_routes_to_csv(monkeypatch, tmp_path: Path) -> None:
         return pd.DataFrame({"source": ["csv"]})
 
     import paos.ingest.csv_ingest as csv_ingest
+
     monkeypatch.setattr(csv_ingest, "ingest_csv", fake_ingest_csv, raising=True)
 
     # Act
@@ -34,6 +35,7 @@ def test_load_daily_log_routes_to_sheets(monkeypatch) -> None:
         return pd.DataFrame({"source": ["sheets"]})
 
     import paos.ingest.sheets_ingest as sheets_ingest
+
     monkeypatch.setattr(
         sheets_ingest,
         "read_daily_log_from_sheets",
@@ -63,6 +65,7 @@ def test_load_daily_log_forwards_dump_raw_path(monkeypatch) -> None:
         return pd.DataFrame({"source": ["sheets"]})
 
     import paos.ingest.sheets_ingest as sheets_ingest
+
     monkeypatch.setattr(
         sheets_ingest,
         "read_daily_log_from_sheets",

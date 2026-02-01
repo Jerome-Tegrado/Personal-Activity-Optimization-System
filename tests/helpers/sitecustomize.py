@@ -6,7 +6,6 @@ import pandas as pd
 
 import paos.ingest
 
-
 _REAL_LOAD_DAILY_LOG = paos.ingest.load_daily_log
 
 

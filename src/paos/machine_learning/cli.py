@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 from .evaluate import eval_result_to_dict, evaluate_energy_model
-from .features import build_energy_features, EnergyFeatureConfig
+from .features import EnergyFeatureConfig, build_energy_features
 from .model import load_model, predict_energy, save_model, train_energy_model
 
 
@@ -65,10 +65,11 @@ def _build_features_with_mask(
     # Ensure activity_level exists (compute if possible)
     if cfg.activity_level_col not in work.columns:
         if cfg.step_points_col in work.columns and cfg.exercise_points_col in work.columns:
-            work[cfg.activity_level_col] = (
-                pd.to_numeric(work[cfg.step_points_col], errors="coerce").fillna(0).astype(float)
-                + pd.to_numeric(work[cfg.exercise_points_col], errors="coerce").fillna(0).astype(float)
-            )
+            work[cfg.activity_level_col] = pd.to_numeric(
+                work[cfg.step_points_col], errors="coerce"
+            ).fillna(0).astype(float) + pd.to_numeric(
+                work[cfg.exercise_points_col], errors="coerce"
+            ).fillna(0).astype(float)
         else:
             raise ValueError(
                 "Missing 'activity_level' and cannot compute it because "
@@ -86,7 +87,9 @@ def _build_features_with_mask(
     if cfg.step_points_col in work.columns:
         work[cfg.step_points_col] = pd.to_numeric(work[cfg.step_points_col], errors="coerce")
     if cfg.exercise_points_col in work.columns:
-        work[cfg.exercise_points_col] = pd.to_numeric(work[cfg.exercise_points_col], errors="coerce")
+        work[cfg.exercise_points_col] = pd.to_numeric(
+            work[cfg.exercise_points_col], errors="coerce"
+        )
 
     # Leakage-safe time features
     work["activity_level_lag_1"] = work[cfg.activity_level_col].shift(1)
@@ -113,11 +116,13 @@ def _build_features_with_mask(
         feature_names.insert(insert_at, cfg.exercise_points_col)
 
     X_all = work[feature_names].copy()
-    y_all = pd.to_numeric(work[cfg.target_col], errors="coerce") if cfg.target_col in work.columns else pd.Series(
-        np.nan, index=work.index
+    y_all = (
+        pd.to_numeric(work[cfg.target_col], errors="coerce")
+        if cfg.target_col in work.columns
+        else pd.Series(np.nan, index=work.index)
     )
 
-    valid_mask = (~X_all.isna().any(axis=1))
+    valid_mask = ~X_all.isna().any(axis=1)
     # If target exists (training), require it too
     if cfg.target_col in work.columns:
         valid_mask = valid_mask & (~y_all.isna())

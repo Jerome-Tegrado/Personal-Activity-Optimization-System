@@ -1,10 +1,9 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from pathlib import Path
 from typing import Any, Optional
 
 import pandas as pd
-
 
 # ---------------------------
 # v3 Section 2 (Step 1)

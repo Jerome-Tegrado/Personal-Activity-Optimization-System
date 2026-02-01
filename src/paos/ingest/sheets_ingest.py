@@ -122,7 +122,9 @@ def read_daily_log_from_sheets(
 
     # exercise_minutes -> int (blank allowed)
     if "exercise_minutes" in df.columns:
-        df["exercise_minutes"] = pd.to_numeric(df["exercise_minutes"], errors="coerce").astype("Int64")
+        df["exercise_minutes"] = pd.to_numeric(df["exercise_minutes"], errors="coerce").astype(
+            "Int64"
+        )
 
     # did_exercise normalize to "Yes"/"No"
     if "did_exercise" in df.columns:

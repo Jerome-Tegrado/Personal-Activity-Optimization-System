@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from datetime import date
-from pathlib import Path
 import importlib.util
 import sys
+from datetime import date
+from pathlib import Path
 
 
 def _import_weekly_report_module() -> object:

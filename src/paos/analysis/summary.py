@@ -5,14 +5,13 @@ from typing import Optional
 
 import pandas as pd
 
-from paos.insights.engine import InsightEngineConfig, generate_insights
+# Benchmarks (Section 5)
+from paos.benchmarks.compare import compare_to_benchmarks
 
 # Experiment reporting is optional (only enabled if experiments_spec is provided)
 from paos.experiments.assign import assign_experiments_to_days
 from paos.experiments.effects import compute_experiment_effects
-
-# Benchmarks (Section 5)
-from paos.benchmarks.compare import compare_to_benchmarks
+from paos.insights.engine import InsightEngineConfig, generate_insights
 
 
 def _prepare_df_with_dates(df: pd.DataFrame) -> pd.DataFrame:
@@ -414,7 +413,9 @@ def write_monthly_summary(
     sedentary_days = (
         int((m["lifestyle_status"] == "Sedentary").sum())
         if days_logged and "lifestyle_status" in m.columns
-        else int((activity <= 25).sum()) if days_logged and activity is not None else 0
+        else int((activity <= 25).sum())
+        if days_logged and activity is not None
+        else 0
     )
     active_plus_days = int((activity >= 51).sum()) if days_logged and activity is not None else 0
 

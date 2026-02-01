@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -134,8 +133,12 @@ def compute_experiment_effects(
         g_treat = g[g[phase_col] == treatment_label]
 
         for metric in metrics:
-            control_vals = pd.to_numeric(g_control[metric], errors="coerce").dropna().to_numpy(dtype=float)
-            treat_vals = pd.to_numeric(g_treat[metric], errors="coerce").dropna().to_numpy(dtype=float)
+            control_vals = (
+                pd.to_numeric(g_control[metric], errors="coerce").dropna().to_numpy(dtype=float)
+            )
+            treat_vals = (
+                pd.to_numeric(g_treat[metric], errors="coerce").dropna().to_numpy(dtype=float)
+            )
 
             n_control = int(len(control_vals))
             n_treatment = int(len(treat_vals))

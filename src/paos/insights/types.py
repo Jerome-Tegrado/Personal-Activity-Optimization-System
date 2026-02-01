@@ -19,6 +19,7 @@ class Insight:
     Keep fields general and safe for public output.
     Avoid raw notes, exact timestamps, or any sensitive identifiers.
     """
+
     key: str
     title: str
     message: str

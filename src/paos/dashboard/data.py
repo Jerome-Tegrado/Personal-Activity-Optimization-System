@@ -5,7 +5,6 @@ from pathlib import Path
 
 import pandas as pd
 
-
 DEFAULT_REQUIRED_COLUMNS = [
     "date",
     "steps",
@@ -78,7 +77,9 @@ def hr_zone_breakdown(df: pd.DataFrame, metric: str = "days") -> pd.DataFrame:
     # Always return the same categories in the same order
     if df.empty:
         out = pd.DataFrame({"heart_rate_zone": HR_ZONE_ORDER, "value": [0] * len(HR_ZONE_ORDER)})
-        out["heart_rate_zone"] = pd.Categorical(out["heart_rate_zone"], categories=HR_ZONE_ORDER, ordered=True)
+        out["heart_rate_zone"] = pd.Categorical(
+            out["heart_rate_zone"], categories=HR_ZONE_ORDER, ordered=True
+        )
         return out
 
     dfx = df.copy()
@@ -107,5 +108,7 @@ def hr_zone_breakdown(df: pd.DataFrame, metric: str = "days") -> pd.DataFrame:
 
     out = s.reset_index()
     out.columns = ["heart_rate_zone", "value"]
-    out["heart_rate_zone"] = pd.Categorical(out["heart_rate_zone"], categories=HR_ZONE_ORDER, ordered=True)
+    out["heart_rate_zone"] = pd.Categorical(
+        out["heart_rate_zone"], categories=HR_ZONE_ORDER, ordered=True
+    )
     return out

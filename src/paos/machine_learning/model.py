@@ -2,16 +2,16 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 import joblib
 import numpy as np
 import pandas as pd
 
 try:
-    from sklearn.linear_model import Ridge
     from sklearn.ensemble import RandomForestRegressor
-except Exception as e:  # pragma: no cover
+    from sklearn.linear_model import Ridge
+except Exception:  # pragma: no cover
     Ridge = None
     RandomForestRegressor = None
 
@@ -23,6 +23,7 @@ class BaselineMeanModel:
 
     This is used to prove that any ML model is better than a trivial baseline.
     """
+
     y_mean_: float
 
     def predict(self, X: pd.DataFrame) -> np.ndarray:
@@ -79,7 +80,9 @@ def train_energy_model(
 
     if model_type in {"rf", "randomforest", "random_forest"}:
         if RandomForestRegressor is None:
-            raise ImportError("scikit-learn is required for RandomForestRegressor. Install scikit-learn.")
+            raise ImportError(
+                "scikit-learn is required for RandomForestRegressor. Install scikit-learn."
+            )
         model = RandomForestRegressor(
             n_estimators=rf_n_estimators,
             random_state=random_state,
@@ -91,7 +94,9 @@ def train_energy_model(
     raise ValueError(f"Unknown model_type='{model_type}'. Use 'baseline', 'ridge', or 'rf'.")
 
 
-def predict_energy(model: Any, X: pd.DataFrame, clip_range: tuple[float, float] | None = (1.0, 5.0)) -> np.ndarray:
+def predict_energy(
+    model: Any, X: pd.DataFrame, clip_range: tuple[float, float] | None = (1.0, 5.0)
+) -> np.ndarray:
     """
     Predict Energy/Focus given a trained model and features.
 

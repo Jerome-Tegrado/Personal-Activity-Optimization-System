@@ -89,7 +89,9 @@ def _build_paos_run_cmd(args: argparse.Namespace, paths: MonthlyPaths) -> list[s
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Generate a monthly PAOS report by running the PAOS runner into a month-stamped folder."
+        description=(
+            "Generate a monthly PAOS report by running the PAOS runner into a month-stamped folder."
+        )
     )
 
     parser.add_argument("--input-type", choices=["csv", "sheets"], required=True)
@@ -101,7 +103,9 @@ def main() -> int:
     parser.add_argument("--today", type=_parse_iso_date, default=date.today())
 
     parser.add_argument("--out-root", type=Path, default=Path("reports") / "monthly")
-    parser.add_argument("--processed-root", type=Path, default=Path("data") / "processed" / "monthly")
+    parser.add_argument(
+        "--processed-root", type=Path, default=Path("data") / "processed" / "monthly"
+    )
 
     parser.add_argument("--dump-raw", action="store_true")
     parser.add_argument("--raw-out", type=Path, default=None)
@@ -161,6 +165,7 @@ def main() -> int:
     # Write monthly summary
     try:
         import pandas as pd
+
         from paos.analysis.summary import write_monthly_summary
     except Exception as e:
         print(f"Monthly report complete (summary skipped: {e})")
@@ -176,7 +181,9 @@ def main() -> int:
             experiments_spec=args.experiments_spec,
             benchmarks_spec=args.benchmarks_spec,
             benchmark_group=args.benchmark_group,
-            benchmark_metrics=tuple(x.strip() for x in args.benchmark_metrics.split(",") if x.strip()),
+            benchmark_metrics=tuple(
+                x.strip() for x in args.benchmark_metrics.split(",") if x.strip()
+            ),
         )
 
     if not args.quiet:

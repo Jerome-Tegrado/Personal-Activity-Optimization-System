@@ -3,7 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Iterable, List, Tuple
 
-import numpy as np
 import pandas as pd
 
 
@@ -16,6 +15,7 @@ class EnergyFeatureConfig:
     - Lag and rolling features are computed using shift(1),
       so they only use information available before the current day.
     """
+
     date_col: str = "date"
     target_col: str = "energy_focus"
     steps_col: str = "steps"
@@ -78,10 +78,11 @@ def build_energy_features(
     # Ensure activity_level exists (compute if possible)
     if cfg.activity_level_col not in work.columns:
         if cfg.step_points_col in work.columns and cfg.exercise_points_col in work.columns:
-            work[cfg.activity_level_col] = (
-                pd.to_numeric(work[cfg.step_points_col], errors="coerce").fillna(0).astype(float)
-                + pd.to_numeric(work[cfg.exercise_points_col], errors="coerce").fillna(0).astype(float)
-            )
+            work[cfg.activity_level_col] = pd.to_numeric(
+                work[cfg.step_points_col], errors="coerce"
+            ).fillna(0).astype(float) + pd.to_numeric(
+                work[cfg.exercise_points_col], errors="coerce"
+            ).fillna(0).astype(float)
         else:
             raise ValueError(
                 "Missing 'activity_level' and cannot compute it because "
@@ -100,7 +101,9 @@ def build_energy_features(
     if cfg.step_points_col in work.columns:
         work[cfg.step_points_col] = pd.to_numeric(work[cfg.step_points_col], errors="coerce")
     if cfg.exercise_points_col in work.columns:
-        work[cfg.exercise_points_col] = pd.to_numeric(work[cfg.exercise_points_col], errors="coerce")
+        work[cfg.exercise_points_col] = pd.to_numeric(
+            work[cfg.exercise_points_col], errors="coerce"
+        )
 
     # Leakage-safe time-series features (shifted)
     work["activity_level_lag_1"] = work[cfg.activity_level_col].shift(1)

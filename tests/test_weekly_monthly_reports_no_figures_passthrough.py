@@ -16,7 +16,8 @@ def test_weekly_report_accepts_no_figures_flag():
     ]
     r = subprocess.run(cmd, capture_output=True, text=True, check=False)
 
-    # Should fail because --input is required for csv, but should NOT be an argparse "unrecognized arguments" failure
+    # Should fail because --input is required for csv, but should NOT be an argparse
+    # "unrecognized arguments" failure
     combined = (r.stdout or "") + (r.stderr or "")
     assert "unrecognized arguments: --no-figures" not in combined.lower()
 

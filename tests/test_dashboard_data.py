@@ -2,12 +2,12 @@ import pandas as pd
 import pytest
 
 from paos.dashboard.data import (
-    load_enriched_csv,
-    validate_required_columns,
+    HR_ZONE_ORDER,
     coerce_date_column,
     filter_by_date_range,
     hr_zone_breakdown,
-    HR_ZONE_ORDER,
+    load_enriched_csv,
+    validate_required_columns,
 )
 
 

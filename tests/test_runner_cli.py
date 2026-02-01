@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
 import subprocess
 import sys
+from pathlib import Path
 
 
 def _subprocess_env_with_sitecustomize() -> dict[str, str]:
@@ -114,8 +114,7 @@ def test_raw_out_requires_dump_raw(tmp_path: Path) -> None:
 def test_csv_run_writes_outputs(tmp_path: Path) -> None:
     input_csv = tmp_path / "daily_log.csv"
     input_csv.write_text(
-        "date,steps,energy_focus,did_exercise,notes\n"
-        "2026-01-01,8000,4,No,\n",
+        "date,steps,energy_focus,did_exercise,notes\n2026-01-01,8000,4,No,\n",
         encoding="utf-8",
     )
 
@@ -152,8 +151,7 @@ def test_csv_run_writes_outputs(tmp_path: Path) -> None:
 def test_ingest_stage_writes_ingested_csv(tmp_path: Path) -> None:
     input_csv = tmp_path / "daily_log.csv"
     input_csv.write_text(
-        "date,steps,energy_focus,did_exercise,notes\n"
-        "2026-01-01,8000,4,No,\n",
+        "date,steps,energy_focus,did_exercise,notes\n2026-01-01,8000,4,No,\n",
         encoding="utf-8",
     )
 
@@ -191,8 +189,7 @@ def test_ingest_stage_writes_ingested_csv(tmp_path: Path) -> None:
 def test_transform_stage_writes_processed_csv(tmp_path: Path) -> None:
     input_csv = tmp_path / "daily_log.csv"
     input_csv.write_text(
-        "date,steps,energy_focus,did_exercise,notes\n"
-        "2026-01-01,8000,4,No,\n",
+        "date,steps,energy_focus,did_exercise,notes\n2026-01-01,8000,4,No,\n",
         encoding="utf-8",
     )
 
@@ -254,8 +251,7 @@ def test_report_stage_generates_summary_from_enriched_csv(tmp_path: Path) -> Non
     # 1) Create a tiny input CSV
     input_csv = tmp_path / "daily_log.csv"
     input_csv.write_text(
-        "date,steps,energy_focus,did_exercise,notes\n"
-        "2026-01-01,8000,4,No,\n",
+        "date,steps,energy_focus,did_exercise,notes\n2026-01-01,8000,4,No,\n",
         encoding="utf-8",
     )
 
@@ -347,6 +343,7 @@ def test_runner_version_flag() -> None:
     assert "paos-run" in combined
     assert "unknown" not in combined
 
+
 def test_report_stage_can_include_experiments_when_flag_provided(tmp_path: Path) -> None:
     # Create an enriched CSV that includes the columns used by:
     # - summary (date/activity_level/energy_focus/did_exercise/lifestyle_status)
@@ -396,6 +393,7 @@ def test_report_stage_can_include_experiments_when_flag_provided(tmp_path: Path)
     summary = (out_dir / "summary.md").read_text(encoding="utf-8")
     assert "## Experiments" in summary
     assert "### e" in summary
+
 
 def test_monthly_report_script_can_include_experiments_when_flag_provided(tmp_path: Path) -> None:
     # Minimal CSV data for January 2026

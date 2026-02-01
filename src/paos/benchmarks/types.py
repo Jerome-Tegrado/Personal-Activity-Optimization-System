@@ -12,6 +12,7 @@ class BenchmarkSpecRow:
     Percentiles are numeric cut points for the metric distribution.
     Example: steps/day p50 = 7000, p75 = 9000, etc.
     """
+
     metric: str
     group: str
     unit: str
@@ -28,6 +29,7 @@ class BenchmarkResult:
     Privacy-safe benchmark comparison output.
     Contains only aggregate user stats + approximate percentile vs benchmark distribution.
     """
+
     metric: str
     group: str
     unit: str

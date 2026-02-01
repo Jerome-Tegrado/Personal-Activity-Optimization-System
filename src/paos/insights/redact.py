@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Iterable, Optional
+from typing import Optional
 
 import pandas as pd
 
@@ -15,6 +15,7 @@ class RedactConfig:
     - bucket_dates_to_week: replace date with a week key like '2026-W01'
     - keep_columns: if provided, only keep these columns (after redaction)
     """
+
     date_col: str = "date"
     drop_notes: bool = True
     notes_col: str = "notes"

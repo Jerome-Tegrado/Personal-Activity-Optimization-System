@@ -14,6 +14,7 @@ class HRZoneInferConfig:
     Default max_hr matches your current v1 estimate (220 - age 22 = 198).
     You can later move this to config.py when you're ready.
     """
+
     max_hr_bpm: int = 198
 
 

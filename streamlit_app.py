@@ -62,23 +62,13 @@ def _filter_cached(
 @st.cache_data
 def _weekly_activity_trend(df: pd.DataFrame) -> pd.DataFrame:
     base = df.dropna(subset=["date", "activity_level"]).sort_values("date")
-    return (
-        base.set_index("date")["activity_level"]
-        .resample("W")
-        .mean()
-        .reset_index()
-    )
+    return base.set_index("date")["activity_level"].resample("W").mean().reset_index()
 
 
 @st.cache_data
 def _weekly_status_counts(df: pd.DataFrame) -> pd.DataFrame:
     base = df.dropna(subset=["date", "activity_level"]).sort_values("date")
-    weekly = (
-        base.set_index("date")["activity_level"]
-        .resample("W")
-        .mean()
-        .reset_index()
-    )
+    weekly = base.set_index("date")["activity_level"].resample("W").mean().reset_index()
     weekly["lifestyle_status"] = weekly["activity_level"].apply(_status_from_activity_level)
     counts = weekly["lifestyle_status"].value_counts().reset_index()
     counts.columns = ["lifestyle_status", "weeks"]
@@ -109,9 +99,7 @@ def _weekly_hr_zone(df: pd.DataFrame, metric: str) -> pd.DataFrame:
 
     if metric == "days":
         weekly_zone = (
-            base.groupby([pd.Grouper(freq="W"), "heart_rate_zone"])
-            .size()
-            .reset_index(name="value")
+            base.groupby([pd.Grouper(freq="W"), "heart_rate_zone"]).size().reset_index(name="value")
         )
     else:
         base["exercise_minutes"] = pd.to_numeric(
@@ -169,7 +157,8 @@ def main() -> None:
     st.title("PAOS Dashboard (v2)")
 
     st.write(
-        "This dashboard loads the **enriched PAOS CSV** and helps you explore activity + energy trends."
+        "This dashboard loads the **enriched PAOS CSV** and helps you explore "
+        "activity + energy trends."
     )
 
     # -----------------------
@@ -178,13 +167,14 @@ def main() -> None:
     with st.sidebar.expander("Help", expanded=False):
         st.markdown("**How to generate an enriched CSV**")
         st.code(
-            "python scripts/paos_run.py transform --input-type csv --input data/sample/daily_log.csv "
-            "--processed data/processed/daily_log_enriched.csv",
+            "python scripts/paos_run.py transform --input-type csv --input "
+            "data/sample/daily_log.csv --processed data/processed/daily_log_enriched.csv",
             language="bash",
         )
         st.markdown(
             "- Use **Data source → Upload CSV** to load an enriched CSV from your machine.\n"
-            "- If you upload a *raw* (non-enriched) CSV, some charts will be unavailable until you run `transform`."
+            "- If you upload a *raw* (non-enriched) CSV, some charts will be unavailable "
+            "until you run `transform`."
         )
 
     # -----------------------
@@ -261,8 +251,8 @@ def main() -> None:
         st.error(
             f"Could not find the enriched CSV at: `{csv_path}`\n\n"
             "Run:\n"
-            "`python scripts/paos_run.py transform --input-type csv --input data/sample/daily_log.csv "
-            "--processed data/processed/daily_log_enriched.csv`"
+            "`python scripts/paos_run.py transform --input-type csv --input "
+            "data/sample/daily_log.csv --processed data/processed/daily_log_enriched.csv`"
         )
         st.stop()
 
@@ -504,7 +494,8 @@ def main() -> None:
 
         else:
             st.info(
-                "Status chart needs `lifestyle_status`, or (`date` + `activity_level`) for weekly mode."
+                "Status chart needs `lifestyle_status`, or (`date` + `activity_level`) for "
+                "weekly mode."
             )
     else:
         st.info("Status chart needs data (current filter is empty).")

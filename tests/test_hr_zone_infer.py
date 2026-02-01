@@ -35,10 +35,10 @@ def test_infer_zone_from_time_in_zone_tie_breaks_to_higher_intensity():
 def test_infer_zone_from_avg_hr_bpm_maps_percent_bands():
     cfg = HRZoneInferConfig(max_hr_bpm=200)
 
-    assert infer_zone_from_avg_hr_bpm(110, cfg) == "light"      # 55%
-    assert infer_zone_from_avg_hr_bpm(130, cfg) == "moderate"   # 65%
-    assert infer_zone_from_avg_hr_bpm(150, cfg) == "intense"    # 75%
-    assert infer_zone_from_avg_hr_bpm(180, cfg) == "peak"       # 90%
+    assert infer_zone_from_avg_hr_bpm(110, cfg) == "light"  # 55%
+    assert infer_zone_from_avg_hr_bpm(130, cfg) == "moderate"  # 65%
+    assert infer_zone_from_avg_hr_bpm(150, cfg) == "intense"  # 75%
+    assert infer_zone_from_avg_hr_bpm(180, cfg) == "peak"  # 90%
 
 
 def test_infer_missing_zone_does_not_overwrite_existing():
@@ -63,6 +63,7 @@ def test_infer_missing_zone_only_on_exercise_days():
         }
     )
     out = infer_missing_heart_rate_zone(df, cfg=HRZoneInferConfig(max_hr_bpm=200))
-    # rest day remains unknown? your function sets unknown for exercise-day missing only; rest day keeps NA
+    # rest day remains unknown? your function sets unknown for exercise-day missing only;
+    # rest day keeps NA
     assert pd.isna(out.loc[0, "heart_rate_zone"])
     assert out.loc[1, "heart_rate_zone"] == "moderate"

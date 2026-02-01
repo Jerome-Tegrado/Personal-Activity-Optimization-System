@@ -206,7 +206,9 @@ def main() -> None:
         from paos.machine_learning.cli import train_and_evaluate_from_enriched_csv
 
         model_path = Path(args.model_path)
-        eval_out = Path(args.eval_out) if args.eval_out else (out_dir / "model" / "energy_eval.json")
+        eval_out = (
+            Path(args.eval_out) if args.eval_out else (out_dir / "model" / "energy_eval.json")
+        )
 
         result = train_and_evaluate_from_enriched_csv(
             enriched_csv_path=out_path,
@@ -222,7 +224,8 @@ def main() -> None:
         print(f"- Eval JSON:  {eval_out}")
         print(f"- MAE/RMSE:   {float(result.get('mae')):.3f} / {float(result.get('rmse')):.3f}")
         print(
-            f"- Baseline:   {float(result.get('baseline_mae')):.3f} / {float(result.get('baseline_rmse')):.3f}"
+            f"- Baseline:   {float(result.get('baseline_mae')):.3f} / "
+            f"{float(result.get('baseline_rmse')):.3f}"
         )
         return
 
@@ -235,7 +238,8 @@ def main() -> None:
         if not model_path.exists():
             raise SystemExit(
                 f"Model not found: {model_path}\n"
-                "Run: python scripts/paos_run.py train-model --processed <enriched.csv> --model-path <path>"
+                "Run: python scripts/paos_run.py train-model --processed <enriched.csv> "
+                "--model-path <path>"
             )
 
         from paos.machine_learning.cli import predict_energy_into_csv

@@ -1,12 +1,10 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Iterable, List
 
 import pandas as pd
 
 from .types import BenchmarkSpecRow
-
 
 _REQUIRED_COLS = ["metric", "group", "unit", "p25", "p50", "p75", "p90"]
 

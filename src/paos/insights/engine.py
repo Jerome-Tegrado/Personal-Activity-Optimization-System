@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Iterable, List, Optional
+from typing import List
 
 import pandas as pd
 
@@ -17,6 +17,7 @@ class InsightEngineConfig:
     - week_mode: if True, bucket by ISO week (requires date column).
     - min_days: minimum rows required to produce insights.
     """
+
     week_mode: bool = True
     min_days: int = 7
     date_col: str = "date"
@@ -72,7 +73,10 @@ def generate_insights(df: pd.DataFrame, cfg: InsightEngineConfig | None = None) 
             Insight(
                 key="low_coverage",
                 title="Not enough days for strong insights",
-                message=f"Only {n_rows} day(s) available. Add more logs to unlock weekly trends and correlations.",
+                message=(
+                    f"Only {n_rows} day(s) available. Add more logs to unlock weekly trends "
+                    "and correlations."
+                ),
                 severity=InsightSeverity.warn,
                 value=float(n_rows),
                 unit="days",
@@ -110,7 +114,10 @@ def generate_insights(df: pd.DataFrame, cfg: InsightEngineConfig | None = None) 
                     Insight(
                         key="activity_energy_corr",
                         title="Activity vs Energy relationship",
-                        message=f"Activity Level and Energy/Focus show a correlation of {corr:+.2f} (higher means they move together).",
+                        message=(
+                            f"Activity Level and Energy/Focus show a correlation of {corr:+.2f} "
+                            "(higher means they move together)."
+                        ),
                         severity=severity,
                         value=corr,
                         unit="corr",
@@ -133,7 +140,10 @@ def generate_insights(df: pd.DataFrame, cfg: InsightEngineConfig | None = None) 
                     Insight(
                         key="exercise_energy_delta",
                         title="Energy difference on exercise days",
-                        message=f"On exercise days, your Energy/Focus is {delta:+.2f} points vs non-exercise days (average).",
+                        message=(
+                            f"On exercise days, your Energy/Focus is {delta:+.2f} points vs "
+                            "non-exercise days (average)."
+                        ),
                         severity=sev,
                         value=delta,
                         unit="energy_points",
@@ -145,7 +155,10 @@ def generate_insights(df: pd.DataFrame, cfg: InsightEngineConfig | None = None) 
             Insight(
                 key="no_insights",
                 title="No insights generated yet",
-                message="Data is present, but not enough valid rows/columns were available for insights. Keep logging consistently.",
+                message=(
+                    "Data is present, but not enough valid rows/columns were available for "
+                    "insights. Keep logging consistently."
+                ),
                 severity=InsightSeverity.warn,
             )
         )
