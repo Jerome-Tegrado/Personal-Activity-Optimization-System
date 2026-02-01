@@ -28,7 +28,7 @@ It ingests daily logs (CSV or Google Sheets), cleans them, computes an **Activit
 - `summary.md` (weekly or monthly)
 - charts (Plotly HTML + Matplotlib PNG)
 
-**Optional “v2/v3” features already in this repo:**
+**Optional features in this repo:**
 - **Google Sheets ingestion** via official API + token caching
 - **Weekly + Monthly report wrappers** that stamp outputs into date-based folders
 - **Benchmarks (opt-in)**: compare your stats to distribution cutpoints (p25/p50/p75/p90)
@@ -198,6 +198,21 @@ Sheets ingestion expects these local files (gitignored):
 * `secrets/credentials.json`
 * `secrets/token.json` (created on first auth)
 
+### Local demo scripts (not tests)
+
+These are utilities for local debugging (not collected by pytest/CI):
+
+* `scripts/sheets_smoke_demo.py` — minimal read-only API smoke test
+* `scripts/sheets_to_df_demo.py` — fetch Sheets data and print the parsed DataFrame
+
+Example (PowerShell):
+
+```powershell
+$env:PAOS_SHEETS_ID="YOUR_SHEET_ID"
+$env:PAOS_SHEETS_RANGE="Form Responses 1!A1:J200"
+python scripts/sheets_to_df_demo.py
+```
+
 ### Debug: dump a raw Sheets snapshot
 
 ```bash
@@ -315,169 +330,6 @@ activity_level = step_points + exercise_points
 
 ---
 
-## Insights in summaries (privacy-safe)
-
-Weekly/monthly summaries include:
-
-* overview metrics (days logged, averages, status counts)
-* Activity ↔ Energy correlation (when valid)
-* rule-based insights generated from aggregate patterns
-
-PAOS intentionally keeps this explainable and avoids dumping sensitive raw text.
-
----
-
-## Benchmarks (optional, public-safe)
-
-You can compare your stats to benchmark distributions using a simple CSV spec.
-
-* Template: `data/benchmarks/benchmarks_template.csv`
-* Sample: `data/sample/benchmarks.csv`
-
-Run with:
-
-```bash
-python scripts/paos_run.py all \
-  --input-type csv \
-  --input data/sample/daily_log.csv \
-  --benchmarks-spec data/sample/benchmarks.csv \
-  --benchmark-group adult \
-  --benchmark-metrics steps,activity_level \
-  --out reports_demo
-```
-
----
-
-## Experiments (optional)
-
-You can label date ranges as control/treatment to evaluate weekly effects.
-
-* Sample: `data/sample/experiments.csv`
-
-Run with:
-
-```bash
-python scripts/paos_run.py all \
-  --input-type csv \
-  --input data/sample/daily_log.csv \
-  --experiments-spec data/sample/experiments.csv \
-  --out reports_demo
-```
-
----
-
-## Energy prediction (optional)
-
-PAOS includes an optional ML module that can train a simple model to predict `energy_focus`
-from leakage-safe features (lags/rolling means).
-
-### Train
-
-```bash
-python scripts/paos_run.py train-model \
-  --processed data/processed/daily_log_enriched.csv \
-  --model-type ridge \
-  --model-path models/energy_model.pkl \
-  --out reports_demo
-```
-
-### Predict into a new CSV
-
-```bash
-python scripts/paos_run.py predict-energy \
-  --processed data/processed/daily_log_enriched.csv \
-  --model-path models/energy_model.pkl \
-  --pred-out data/processed/daily_log_enriched_with_preds.csv
-```
-
-Model types:
-
-* `baseline`
-* `ridge`
-* `rf` (random forest)
-
----
-
-## Developer commands (Windows / PowerShell)
-
-Helper script: `scripts/dev.ps1`
-
-```powershell
-# one-time environment setup
-.\scripts\dev.ps1 setup
-
-# format + lint
-.\scripts\dev.ps1 lint
-
-# run tests
-.\scripts\dev.ps1 test
-
-# demo run (writes to reports_demo/)
-.\scripts\dev.ps1 demo
-
-# run dashboard
-.\scripts\dev.ps1 dashboard
-
-# weekly + monthly demo outputs (deterministic demo date by default)
-.\scripts\dev.ps1 weekly
-.\scripts\dev.ps1 monthly
-
-# optional: override anchor date
-.\scripts\dev.ps1 weekly -Today "2026-01-20"
-```
-
----
-
-## Tech stack (actual repo)
-
-* Python 3.11+
-* pandas, numpy
-* Plotly (interactive charts)
-* Matplotlib (static charts)
-* Streamlit (dashboard)
-* Google Sheets API (official client libs)
-* pytest (tests)
-* ruff (lint + format)
-* scikit-learn + joblib (optional energy prediction module)
-
----
-
-## Project structure (actual repo)
-
-```text
-Personal-Activity-Optimization-System-main/
-├── .github/workflows/tests.yml
-├── .env.example
-├── pyproject.toml
-├── requirements.txt
-├── README.md
-├── streamlit_app.py
-├── scripts/
-│   ├── dev.ps1
-│   ├── paos_run.py
-│   ├── paos_weekly_report.py
-│   ├── paos_monthly_report.py
-│   ├── sheets_smoke_test.py
-│   └── sheets_to_df_test.py
-├── src/paos/
-│   ├── config.py
-│   ├── ingest/              # CSV + Sheets ingestion (+ optional HR columns normalization)
-│   ├── transform/           # scoring, HR zone inference, recommendations
-│   ├── viz/                 # Plotly + Matplotlib exports
-│   ├── analysis/            # weekly/monthly summaries
-│   ├── insights/            # privacy-safe insight generation + redaction helpers
-│   ├── experiments/         # experiment assignment + effects
-│   ├── benchmarks/          # benchmark comparisons
-│   └── machine_learning/    # optional energy model training + prediction
-├── data/
-│   ├── sample/              # synthetic sample data (safe to commit)
-│   └── benchmarks/          # benchmark templates + docs
-├── reports_demo/            # public demo outputs (safe to commit)
-└── tests/                   # unit tests
-```
-
----
-
 ## Testing + CI
 
 Local:
@@ -494,6 +346,58 @@ CI (GitHub Actions) runs:
 * `ruff check .`
 * `ruff format --check .`
 * `pytest -v`
+
+> pytest is configured to only collect tests from `tests/` (so scripts under `scripts/` won’t break CI).
+
+---
+
+## Tech stack
+
+* Python 3.11+
+* pandas, numpy
+* Plotly (interactive charts)
+* Matplotlib (static charts)
+* Streamlit (dashboard)
+* Google Sheets API (official client libs)
+* pytest (tests)
+* ruff (lint + format)
+* scikit-learn + joblib (optional energy prediction module)
+
+---
+
+## Project structure
+
+```text
+Personal-Activity-Optimization-System/
+├── .github/workflows/tests.yml
+├── .env.example
+├── pyproject.toml
+├── requirements.txt
+├── README.md
+├── streamlit_app.py
+├── scripts/
+│   ├── dev.ps1
+│   ├── paos_run.py
+│   ├── paos_weekly_report.py
+│   ├── paos_monthly_report.py
+│   ├── sheets_smoke_demo.py
+│   └── sheets_to_df_demo.py
+├── src/paos/
+│   ├── config.py
+│   ├── ingest/
+│   ├── transform/
+│   ├── viz/
+│   ├── analysis/
+│   ├── insights/
+│   ├── experiments/
+│   ├── benchmarks/
+│   └── machine_learning/
+├── data/
+│   ├── sample/
+│   └── benchmarks/
+├── reports_demo/
+└── tests/
+```
 
 ---
 
