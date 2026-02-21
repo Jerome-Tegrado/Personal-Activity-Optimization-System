@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
@@ -62,7 +63,10 @@ def render_pipeline(df: pd.DataFrame | None, filtered: pd.DataFrame | None) -> N
 
     status_info: list[str] = []
     if processed.exists():
-        status_info.append(f"Processed CSV ready: {processed.name}")
+        mod_ts = datetime.fromtimestamp(processed.stat().st_mtime)
+        status_info.append(
+            f"Processed CSV ready: {processed.name} (updated {mod_ts:%Y-%m-%d %H:%M})"
+        )
     else:
         status_info.append(f"Processed CSV missing: {processed.name}")
     if out.exists():
