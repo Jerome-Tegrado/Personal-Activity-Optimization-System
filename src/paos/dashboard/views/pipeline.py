@@ -60,6 +60,17 @@ def render_pipeline(df: pd.DataFrame | None, filtered: pd.DataFrame | None) -> N
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
 
+    status_info: list[str] = []
+    if processed.exists():
+        status_info.append(f"Processed CSV ready: {processed.name}")
+    else:
+        status_info.append(f"Processed CSV missing: {processed.name}")
+    if out.exists():
+        status_info.append(f"Reports dir exists: {out}")
+    else:
+        status_info.append(f"Reports dir will be created: {out}")
+    st.caption(" • ".join(status_info))
+
     with st.status("Running…", expanded=True) as status:
         try:
             df_raw: pd.DataFrame | None = None

@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import IO, Any
 
 import pandas as pd
+from pandas import api as pd_api
 
 DEFAULT_REQUIRED_COLUMNS = [
     "date",
@@ -16,6 +17,14 @@ DEFAULT_REQUIRED_COLUMNS = [
 ]
 
 HR_ZONE_ORDER = ["light", "moderate", "intense", "peak", "unknown"]
+
+
+def _truthy_exercise_mask(series: pd.Series) -> pd.Series:
+    if pd_api.types.is_bool_dtype(series):
+        return series.fillna(False)
+
+    lower = series.astype(str).str.strip().str.lower()
+    return lower.isin({"yes", "true", "1", "y"})
 
 
 @dataclass(frozen=True)
@@ -106,8 +115,8 @@ def hr_zone_breakdown(df: pd.DataFrame, metric: str = "days") -> pd.DataFrame:
         return out
 
     # Keep only exercised rows
-    did = dfx["did_exercise"].astype(str).str.strip().str.lower()
-    dfx = dfx[did == "yes"]
+    did_mask = _truthy_exercise_mask(dfx["did_exercise"])
+    dfx = dfx[did_mask]
 
     # Normalize zones
     dfx["heart_rate_zone"] = (

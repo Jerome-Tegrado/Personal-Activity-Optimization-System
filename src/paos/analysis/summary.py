@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Optional
 
 import pandas as pd
+
+logger = logging.getLogger(__name__)
 
 # Benchmarks (Section 5)
 from paos.benchmarks.compare import compare_to_benchmarks
@@ -113,6 +116,7 @@ def _render_experiments_md(
 
     spec_path = Path(spec_path)
     if not spec_path.exists():
+        logger.warning("Experiment spec missing: %s", spec_path)
         return []
 
     # Assign experiment/phase/label onto the slice
@@ -234,6 +238,7 @@ def _render_benchmarks_md(
 
     spec_path = Path(spec_path)
     if not spec_path.exists():
+        logger.warning("Benchmark spec missing: %s", spec_path)
         return []
 
     results = compare_to_benchmarks(df_slice, spec_path=spec_path, group=group, metrics=metrics)
